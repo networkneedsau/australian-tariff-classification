@@ -182,6 +182,14 @@ interface BioActRow {
 }
 interface BioChapterGroup { chapter: string; chapter_title: string; entries: BioActRow[]; }
 
+// ── Commerce (Trade Descriptions) ─────────────────────────────────
+
+interface TdActRow { id: number; part: string; part_title: string; section_number: string; section_title: string; }
+interface TdActPartGroup { part: string; part_title: string; sections: TdActRow[]; }
+
+interface TdRegRow { id: number; part: string; part_title: string; division: string | null; division_title: string | null; subdivision: string | null; regulation_number: string; regulation_title: string; }
+interface TdRegPartGroup { part: string; part_title: string; regulations: TdRegRow[]; }
+
 // ── Dumping Notices ────────────────────────────────────────────────
 
 interface DumpingRow {
@@ -310,7 +318,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -362,6 +370,16 @@ export default function TariffSearchPage() {
   const [expandedBioRegsCh, setExpandedBioRegsCh] = useState<string | null>(null);
   const [bioRegsLoading, setBioRegsLoading] = useState(false);
 
+  // Trade Descriptions data
+  const [tdActData, setTdActData] = useState<TdActRow[]>([]);
+  const [tdActParts, setTdActParts] = useState<TdActPartGroup[]>([]);
+  const [expandedTdActPart, setExpandedTdActPart] = useState<string | null>(null);
+  const [tdActLoading, setTdActLoading] = useState(false);
+  const [tdRegsData, setTdRegsData] = useState<TdRegRow[]>([]);
+  const [tdRegsParts, setTdRegsParts] = useState<TdRegPartGroup[]>([]);
+  const [expandedTdRegsPart, setExpandedTdRegsPart] = useState<string | null>(null);
+  const [tdRegsLoading, setTdRegsLoading] = useState(false);
+
   // Dumping notices data
   const [dumpData, setDumpData] = useState<DumpingRow[]>([]);
   const [dumpCategories, setDumpCategories] = useState<DumpCategoryGroup[]>([]);
@@ -404,6 +422,8 @@ export default function TariffSearchPage() {
   const [gstRegsFilter, setGstRegsFilter] = useState('');
   const [bioActFilter, setBioActFilter] = useState('');
   const [bioRegsFilter, setBioRegsFilter] = useState('');
+  const [tdActFilter, setTdActFilter] = useState('');
+  const [tdRegsFilter, setTdRegsFilter] = useState('');
   const [rulesFilter, setRulesFilter] = useState('');
   const [sectionsFilter, setSectionsFilter] = useState('');
   const [ftaFilter, setFtaFilter] = useState('');
@@ -597,6 +617,14 @@ export default function TariffSearchPage() {
     ? bioRegsChapters.map(c => ({ ...c, entries: c.entries.filter(e => (e.part_title || '').toLowerCase().includes(bioRegsFilter.toLowerCase()) || (e.division_title || '').toLowerCase().includes(bioRegsFilter.toLowerCase()) || (e.section_range || '').toLowerCase().includes(bioRegsFilter.toLowerCase())) })).filter(c => c.entries.length > 0)
     : bioRegsChapters;
 
+  const filteredTdActParts = tdActFilter
+    ? tdActParts.map(p => ({ ...p, sections: p.sections.filter(s => s.section_title.toLowerCase().includes(tdActFilter.toLowerCase()) || s.section_number.toLowerCase().includes(tdActFilter.toLowerCase())) })).filter(p => p.sections.length > 0)
+    : tdActParts;
+
+  const filteredTdRegsParts = tdRegsFilter
+    ? tdRegsParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_title.toLowerCase().includes(tdRegsFilter.toLowerCase()) || r.regulation_number.toLowerCase().includes(tdRegsFilter.toLowerCase()) || (r.division_title || '').toLowerCase().includes(tdRegsFilter.toLowerCase()) || (r.subdivision || '').toLowerCase().includes(tdRegsFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
+    : tdRegsParts;
+
   const filteredDumpCategories = dumpFilter
     ? dumpCategories.map(c => ({
         ...c,
@@ -719,7 +747,11 @@ export default function TariffSearchPage() {
                         ? 'Biosecurity Act 2015'
                         : activeView === 'bio-regs'
                           ? 'Biosecurity Regulation 2016'
-                          : activeView === 'chemicals'
+                          : activeView === 'td-act'
+                            ? 'Commerce (Trade Descriptions) Act 1905'
+                            : activeView === 'td-regs'
+                              ? 'Commerce (Trade Descriptions) Regulations 2016'
+                              : activeView === 'chemicals'
                     ? 'Chemical Index — CWC Scheduled Chemicals'
                     : activeView === 'ahecc'
                       ? 'AHECC — Export Commodity Classification'
@@ -1160,6 +1192,62 @@ export default function TariffSearchPage() {
                   >
                     <span className="font-mono text-xs font-bold text-teal-700 w-24 shrink-0 pt-0.5">Bio Regs</span>
                     <span className="text-sm text-gray-700">Biosecurity Regulation 2016</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 mx-3" />
+
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Trade</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setLegislationDropdownOpen(false);
+                      setActiveView('td-act');
+                      setActiveSchedule(null);
+                      setTdActFilter('');
+                      setExpandedTdActPart(null);
+                      if (tdActData.length === 0) {
+                        setTdActLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/trade-desc-act');
+                          const data: TdActRow[] = await res.json();
+                          setTdActData(data);
+                          const groups: TdActPartGroup[] = [];
+                          const m = new Map<string, TdActPartGroup>();
+                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
+                          setTdActParts(groups);
+                        } catch { /* */ } finally { setTdActLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-purple-700 w-24 shrink-0 pt-0.5">TD Act</span>
+                    <span className="text-sm text-gray-700">Commerce (Trade Descriptions) Act 1905</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setLegislationDropdownOpen(false);
+                      setActiveView('td-regs');
+                      setActiveSchedule(null);
+                      setTdRegsFilter('');
+                      setExpandedTdRegsPart(null);
+                      if (tdRegsData.length === 0) {
+                        setTdRegsLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/trade-desc-regs');
+                          const data: TdRegRow[] = await res.json();
+                          setTdRegsData(data);
+                          const groups: TdRegPartGroup[] = [];
+                          const m = new Map<string, TdRegPartGroup>();
+                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
+                          setTdRegsParts(groups);
+                        } catch { /* */ } finally { setTdRegsLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-purple-700 w-24 shrink-0 pt-0.5">TD Regs</span>
+                    <span className="text-sm text-gray-700">Trade Descriptions Regulations 2016</span>
                   </button>
 
                 </div>
@@ -1829,6 +1917,82 @@ export default function TariffSearchPage() {
                         )}
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()
+        ) : (activeView === 'td-act' || activeView === 'td-regs') ? (
+          // ── Trade Descriptions Act / Regs ──────────────────────
+          (() => {
+            const isAct = activeView === 'td-act';
+            const title = isAct ? 'Commerce (Trade Descriptions) Act 1905' : 'Commerce (Trade Descriptions) Regulations 2016';
+            const data = isAct ? tdActData : tdRegsData;
+            const loading = isAct ? tdActLoading : tdRegsLoading;
+            const filter = isAct ? tdActFilter : tdRegsFilter;
+            const setFilter = isAct ? setTdActFilter : setTdRegsFilter;
+            const parts = isAct ? filteredTdActParts : filteredTdRegsParts;
+            const allParts = isAct ? tdActParts : tdRegsParts;
+            const expanded = isAct ? expandedTdActPart : expandedTdRegsPart;
+            const setExpanded = isAct ? setExpandedTdActPart : setExpandedTdRegsPart;
+            return (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    Back to Search
+                  </button>
+                </div>
+                <div className="bg-white rounded-lg shadow p-4 mb-4">
+                  <h2 className="text-xl font-semibold text-gray-800 mb-1">{title}</h2>
+                  <p className="text-xs text-gray-500 mb-3">{allParts.length} parts, {data.length} {isAct ? 'sections' : 'regulations'}</p>
+                  <input type="text" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={`Search ${isAct ? 'sections' : 'regulations'}...`} className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" />
+                </div>
+                {loading ? (
+                  <div className="bg-white rounded-lg shadow p-12 text-center">
+                    <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(parts as (TdActPartGroup | TdRegPartGroup)[]).map((pg) => {
+                      const items = 'sections' in pg ? pg.sections : pg.regulations;
+                      return (
+                        <div key={pg.part} className="bg-white rounded-lg shadow overflow-hidden">
+                          <button onClick={() => setExpanded(expanded === pg.part ? null : pg.part)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-purple-50 transition-colors">
+                            <div>
+                              <span className="font-mono font-bold text-purple-700 mr-3">{pg.part}</span>
+                              <span className="text-gray-800">{pg.part_title}</span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0 ml-4">
+                              <span className="text-xs text-gray-400">{items.length}</span>
+                              <svg className={`w-4 h-4 text-gray-400 transition-transform ${expanded === pg.part ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            </div>
+                          </button>
+                          {expanded === pg.part && (
+                            <div className="border-t border-gray-100 divide-y divide-gray-50">
+                              {items.map((item) => {
+                                const isSection = 'section_number' in item;
+                                const num = isSection ? (item as TdActRow).section_number : (item as TdRegRow).regulation_number;
+                                const title2 = isSection ? (item as TdActRow).section_title : (item as TdRegRow).regulation_title;
+                                const reg = !isSection ? (item as TdRegRow) : null;
+                                return (
+                                  <div key={item.id} className="px-6 py-2 text-sm hover:bg-purple-50 transition-colors">
+                                    <div className="flex items-start gap-3">
+                                      <span className="font-mono text-purple-600 font-medium w-16 shrink-0">{isSection ? `s.${num}` : `r.${num}`}</span>
+                                      <div className="flex-1">
+                                        <span className="text-gray-700">{title2}</span>
+                                        {reg?.division && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{reg.division}</span>}
+                                        {reg?.subdivision && <p className="text-xs text-gray-400 mt-0.5">{reg.subdivision}</p>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
