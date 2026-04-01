@@ -172,6 +172,16 @@ interface GstRegChapterGroup {
   divisions: GstRegRow[];
 }
 
+// ── Biosecurity Act 2015 / Regulation 2016 ────────────────────────
+
+interface BioActRow {
+  id: number; chapter: string; chapter_title: string;
+  part: string | null; part_title: string | null;
+  division: string | null; division_title: string | null;
+  section_range: string | null;
+}
+interface BioChapterGroup { chapter: string; chapter_title: string; entries: BioActRow[]; }
+
 // ── Dumping Notices ────────────────────────────────────────────────
 
 interface DumpingRow {
@@ -300,7 +310,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -340,6 +350,17 @@ export default function TariffSearchPage() {
   const [gstRegsChapters, setGstRegsChapters] = useState<GstRegChapterGroup[]>([]);
   const [expandedGstRegsCh, setExpandedGstRegsCh] = useState<string | null>(null);
   const [gstRegsLoading, setGstRegsLoading] = useState(false);
+
+  // Biosecurity Act data
+  const [bioActData, setBioActData] = useState<BioActRow[]>([]);
+  const [bioActChapters, setBioActChapters] = useState<BioChapterGroup[]>([]);
+  const [expandedBioActCh, setExpandedBioActCh] = useState<string | null>(null);
+  const [bioActLoading, setBioActLoading] = useState(false);
+  // Biosecurity Regs data
+  const [bioRegsData, setBioRegsData] = useState<BioActRow[]>([]);
+  const [bioRegsChapters, setBioRegsChapters] = useState<BioChapterGroup[]>([]);
+  const [expandedBioRegsCh, setExpandedBioRegsCh] = useState<string | null>(null);
+  const [bioRegsLoading, setBioRegsLoading] = useState(false);
 
   // Dumping notices data
   const [dumpData, setDumpData] = useState<DumpingRow[]>([]);
@@ -381,6 +402,8 @@ export default function TariffSearchPage() {
   const [dumpFilter, setDumpFilter] = useState('');
   const [gstActFilter, setGstActFilter] = useState('');
   const [gstRegsFilter, setGstRegsFilter] = useState('');
+  const [bioActFilter, setBioActFilter] = useState('');
+  const [bioRegsFilter, setBioRegsFilter] = useState('');
   const [rulesFilter, setRulesFilter] = useState('');
   const [sectionsFilter, setSectionsFilter] = useState('');
   const [ftaFilter, setFtaFilter] = useState('');
@@ -566,6 +589,14 @@ export default function TariffSearchPage() {
       })).filter(c => c.divisions.length > 0)
     : gstRegsChapters;
 
+  const filteredBioActChapters = bioActFilter
+    ? bioActChapters.map(c => ({ ...c, entries: c.entries.filter(e => (e.part_title || '').toLowerCase().includes(bioActFilter.toLowerCase()) || (e.division_title || '').toLowerCase().includes(bioActFilter.toLowerCase()) || (e.section_range || '').toLowerCase().includes(bioActFilter.toLowerCase())) })).filter(c => c.entries.length > 0)
+    : bioActChapters;
+
+  const filteredBioRegsChapters = bioRegsFilter
+    ? bioRegsChapters.map(c => ({ ...c, entries: c.entries.filter(e => (e.part_title || '').toLowerCase().includes(bioRegsFilter.toLowerCase()) || (e.division_title || '').toLowerCase().includes(bioRegsFilter.toLowerCase()) || (e.section_range || '').toLowerCase().includes(bioRegsFilter.toLowerCase())) })).filter(c => c.entries.length > 0)
+    : bioRegsChapters;
+
   const filteredDumpCategories = dumpFilter
     ? dumpCategories.map(c => ({
         ...c,
@@ -684,7 +715,11 @@ export default function TariffSearchPage() {
                     ? 'GST Act 1999 — Table of Contents'
                     : activeView === 'gst-regs'
                       ? 'GST Regulations 2019'
-                      : activeView === 'chemicals'
+                      : activeView === 'bio-act'
+                        ? 'Biosecurity Act 2015'
+                        : activeView === 'bio-regs'
+                          ? 'Biosecurity Regulation 2016'
+                          : activeView === 'chemicals'
                     ? 'Chemical Index — CWC Scheduled Chemicals'
                     : activeView === 'ahecc'
                       ? 'AHECC — Export Commodity Classification'
@@ -1067,6 +1102,64 @@ export default function TariffSearchPage() {
                   >
                     <span className="font-mono text-xs font-bold text-green-700 w-24 shrink-0 pt-0.5">GST Regs</span>
                     <span className="text-sm text-gray-700">GST Regulations 2019</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 mx-3" />
+
+                  <div className="border-t border-gray-100 mx-3" />
+
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Biosecurity</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setLegislationDropdownOpen(false);
+                      setActiveView('bio-act');
+                      setActiveSchedule(null);
+                      setBioActFilter('');
+                      setExpandedBioActCh(null);
+                      if (bioActData.length === 0) {
+                        setBioActLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/biosecurity-act');
+                          const data: BioActRow[] = await res.json();
+                          setBioActData(data);
+                          const groups: BioChapterGroup[] = [];
+                          const m = new Map<string, BioChapterGroup>();
+                          for (const d of data) { let g = m.get(d.chapter); if (!g) { g = { chapter: d.chapter, chapter_title: d.chapter_title, entries: [] }; m.set(d.chapter, g); groups.push(g); } g.entries.push(d); }
+                          setBioActChapters(groups);
+                        } catch { /* */ } finally { setBioActLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-teal-700 w-24 shrink-0 pt-0.5">Bio Act</span>
+                    <span className="text-sm text-gray-700">Biosecurity Act 2015</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setLegislationDropdownOpen(false);
+                      setActiveView('bio-regs');
+                      setActiveSchedule(null);
+                      setBioRegsFilter('');
+                      setExpandedBioRegsCh(null);
+                      if (bioRegsData.length === 0) {
+                        setBioRegsLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/biosecurity-regs');
+                          const data: BioActRow[] = await res.json();
+                          setBioRegsData(data);
+                          const groups: BioChapterGroup[] = [];
+                          const m = new Map<string, BioChapterGroup>();
+                          for (const d of data) { let g = m.get(d.chapter); if (!g) { g = { chapter: d.chapter, chapter_title: d.chapter_title, entries: [] }; m.set(d.chapter, g); groups.push(g); } g.entries.push(d); }
+                          setBioRegsChapters(groups);
+                        } catch { /* */ } finally { setBioRegsLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-teal-700 w-24 shrink-0 pt-0.5">Bio Regs</span>
+                    <span className="text-sm text-gray-700">Biosecurity Regulation 2016</span>
                   </button>
 
                   <div className="border-t border-gray-100 mx-3" />
@@ -1711,6 +1804,78 @@ export default function TariffSearchPage() {
               </div>
             )}
           </div>
+        ) : (activeView === 'bio-act' || activeView === 'bio-regs') ? (
+          // ── Biosecurity Act / Regs ─────────────────────────────
+          (() => {
+            const isBioAct = activeView === 'bio-act';
+            const title = isBioAct ? 'Biosecurity Act 2015' : 'Biosecurity Regulation 2016';
+            const legUrl = isBioAct ? 'https://www.legislation.gov.au/C2015A00061/latest/text' : 'https://www.legislation.gov.au/F2016L00756/latest/text';
+            const data = isBioAct ? bioActData : bioRegsData;
+            const chapters = isBioAct ? filteredBioActChapters : filteredBioRegsChapters;
+            const allChapters = isBioAct ? bioActChapters : bioRegsChapters;
+            const loading = isBioAct ? bioActLoading : bioRegsLoading;
+            const filter = isBioAct ? bioActFilter : bioRegsFilter;
+            const setFilter = isBioAct ? setBioActFilter : setBioRegsFilter;
+            const expanded = isBioAct ? expandedBioActCh : expandedBioRegsCh;
+            const setExpanded = isBioAct ? setExpandedBioActCh : setExpandedBioRegsCh;
+            return (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    Back to Search
+                  </button>
+                  <a href={legUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                    View on legislation.gov.au <ExternalIcon />
+                  </a>
+                </div>
+                <div className="bg-white rounded-lg shadow p-4 mb-4">
+                  <h2 className="text-xl font-semibold text-gray-800 mb-1">{title}</h2>
+                  <p className="text-xs text-gray-500 mb-3">{allChapters.length} chapters, {data.length} entries</p>
+                  <input type="text" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search..." className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" />
+                </div>
+                {loading ? (
+                  <div className="bg-white rounded-lg shadow p-12 text-center">
+                    <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                    <p className="text-gray-500 mt-4">Loading...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {chapters.map((ch) => (
+                      <div key={ch.chapter} className="bg-white rounded-lg shadow overflow-hidden">
+                        <button onClick={() => setExpanded(expanded === ch.chapter ? null : ch.chapter)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-teal-50 transition-colors">
+                          <div>
+                            <span className="font-mono font-bold text-teal-700 mr-3">{ch.chapter}</span>
+                            <span className="text-gray-800">{ch.chapter_title}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-4">
+                            <span className="text-xs text-gray-400">{ch.entries.length}</span>
+                            <svg className={`w-4 h-4 text-gray-400 transition-transform ${expanded === ch.chapter ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                          </div>
+                        </button>
+                        {expanded === ch.chapter && (
+                          <div className="border-t border-gray-100 divide-y divide-gray-50">
+                            {ch.entries.map((e) => (
+                              <div key={e.id} className="px-6 py-2 text-sm hover:bg-teal-50 transition-colors">
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-1">
+                                    {e.part && <span className="font-medium text-teal-600 mr-2">{e.part}</span>}
+                                    {e.part_title && <span className="text-gray-700">{e.part_title}</span>}
+                                    {e.division && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{e.division}{e.division_title ? `: ${e.division_title}` : ''}</span>}
+                                    {e.section_range && <span className="text-xs text-gray-400 ml-2">({e.section_range})</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()
         ) : activeView === 'dumping' ? (
           // ── Anti-Dumping Notices ────────────────────────────────
           <div>
