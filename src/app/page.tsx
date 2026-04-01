@@ -101,6 +101,40 @@ interface ActPartGroup {
   sections: ActSectionRow[];
 }
 
+// ── Prohibited Imports Regulations 1956 ────────────────────────────
+
+interface RegulationRow {
+  id: number;
+  part: string | null;
+  part_title: string | null;
+  regulation_number: string;
+  regulation_title: string;
+  category: string | null;
+}
+
+interface RegPartGroup {
+  part: string;
+  part_title: string;
+  regulations: RegulationRow[];
+}
+
+// ── Chemical Index (CWC Schedules 1-3) ─────────────────────────────
+
+interface ChemicalRow {
+  id: number;
+  cwc_schedule: string;
+  item_number: string;
+  chemical_name: string;
+  cas_number: string | null;
+  category: string;
+  notes: string | null;
+}
+
+interface ChemScheduleGroup {
+  schedule: string;
+  chemicals: ChemicalRow[];
+}
+
 // ── Schedule 2: Interpretative Rules ───────────────────────────────
 
 interface RuleData {
@@ -161,7 +195,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -180,8 +214,22 @@ export default function TariffSearchPage() {
   const [expandedPart, setExpandedPart] = useState<string | null>(null);
   const [actLoading, setActLoading] = useState(false);
 
+  // Prohibited Imports Regulations data
+  const [regsData, setRegsData] = useState<RegulationRow[]>([]);
+  const [regParts, setRegParts] = useState<RegPartGroup[]>([]);
+  const [expandedRegPart, setExpandedRegPart] = useState<string | null>(null);
+  const [regsLoading, setRegsLoading] = useState(false);
+
+  // Chemical index data
+  const [chemsData, setChemsData] = useState<ChemicalRow[]>([]);
+  const [chemGroups, setChemGroups] = useState<ChemScheduleGroup[]>([]);
+  const [expandedChemSchedule, setExpandedChemSchedule] = useState<string | null>(null);
+  const [chemsLoading, setChemsLoading] = useState(false);
+
   // Scoped filter state
   const [actFilter, setActFilter] = useState('');
+  const [regsFilter, setRegsFilter] = useState('');
+  const [chemsFilter, setChemsFilter] = useState('');
   const [rulesFilter, setRulesFilter] = useState('');
   const [sectionsFilter, setSectionsFilter] = useState('');
   const [ftaFilter, setFtaFilter] = useState('');
@@ -199,14 +247,27 @@ export default function TariffSearchPage() {
 
   // ── Search logic ─────────────────────────────────────────────────
 
+  const [searchActResults, setSearchActResults] = useState<ActSectionRow[]>([]);
+  const [searchActTotal, setSearchActTotal] = useState(0);
+  const [searchRegsResults, setSearchRegsResults] = useState<RegulationRow[]>([]);
+  const [searchRegsTotal, setSearchRegsTotal] = useState(0);
+  const [searchChemsResults, setSearchChemsResults] = useState<ChemicalRow[]>([]);
+  const [searchChemsTotal, setSearchChemsTotal] = useState(0);
+
   const search = useCallback(async (q: string) => {
-    if (q.length < 2) { setResults([]); setTotal(0); return; }
+    if (q.length < 2) { setResults([]); setTotal(0); setSearchActResults([]); setSearchActTotal(0); setSearchRegsResults([]); setSearchRegsTotal(0); setSearchChemsResults([]); setSearchChemsTotal(0); return; }
     setLoading(true);
     try {
       const res = await fetch(`/api/tariff/search?q=${encodeURIComponent(q)}&limit=30`);
       const data = await res.json();
       setResults(data.results || []);
       setTotal(data.total || 0);
+      setSearchActResults(data.actResults || []);
+      setSearchActTotal(data.actTotal || 0);
+      setSearchRegsResults(data.regsResults || []);
+      setSearchRegsTotal(data.regsTotal || 0);
+      setSearchChemsResults(data.chemsResults || []);
+      setSearchChemsTotal(data.chemsTotal || 0);
     } catch { setResults([]); }
     finally { setLoading(false); }
   }, []);
@@ -321,6 +382,30 @@ export default function TariffSearchPage() {
       )
     : actParts;
 
+  const filteredChemGroups = chemsFilter
+    ? chemGroups.map(g => ({
+        ...g,
+        chemicals: g.chemicals.filter(c =>
+          c.chemical_name.toLowerCase().includes(chemsFilter.toLowerCase()) ||
+          (c.cas_number || '').toLowerCase().includes(chemsFilter.toLowerCase()) ||
+          c.category.toLowerCase().includes(chemsFilter.toLowerCase()) ||
+          (c.notes || '').toLowerCase().includes(chemsFilter.toLowerCase())
+        )
+      })).filter(g => g.chemicals.length > 0)
+    : chemGroups;
+
+  const filteredRegParts = regsFilter
+    ? regParts.filter(p =>
+        p.part.toLowerCase().includes(regsFilter.toLowerCase()) ||
+        p.part_title.toLowerCase().includes(regsFilter.toLowerCase()) ||
+        p.regulations.some(r =>
+          r.regulation_number.toLowerCase().includes(regsFilter.toLowerCase()) ||
+          r.regulation_title.toLowerCase().includes(regsFilter.toLowerCase()) ||
+          (r.category || '').toLowerCase().includes(regsFilter.toLowerCase())
+        )
+      )
+    : regParts;
+
   const filteredRules = rulesFilter
     ? SCHEDULE_2_RULES.filter(r =>
         r.rule.toLowerCase().includes(rulesFilter.toLowerCase()) ||
@@ -361,7 +446,11 @@ export default function TariffSearchPage() {
             <p className="text-sm text-blue-200">
               {activeView === 'act'
                 ? 'Customs Act 1901 — Table of Contents'
-                : activeView === 'schedule' && activeSchedule
+                : activeView === 'regulations'
+                  ? 'Customs (Prohibited Imports) Regulations 1956'
+                  : activeView === 'chemicals'
+                    ? 'Chemical Index — CWC Scheduled Chemicals'
+                    : activeView === 'schedule' && activeSchedule
                   ? `${activeSchedule.label} — ${activeSchedule.title}`
                   : 'Search the Combined Australian Customs Tariff Nomenclature'}
             </p>
@@ -419,6 +508,75 @@ export default function TariffSearchPage() {
                 >
                   <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Act</span>
                   <span className="text-sm text-gray-700">Customs Act 1901</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    setDropdownOpen(false);
+                    setActiveView('regulations');
+                    setActiveSchedule(null);
+                    setRegsFilter('');
+                    setExpandedRegPart(null);
+                    if (regsData.length === 0) {
+                      setRegsLoading(true);
+                      try {
+                        const res = await fetch('/api/tariff/regulations');
+                        const data: RegulationRow[] = await res.json();
+                        setRegsData(data);
+                        const groups: RegPartGroup[] = [];
+                        const partMap = new Map<string, RegPartGroup>();
+                        for (const r of data) {
+                          const key = r.part || 'Other';
+                          let group = partMap.get(key);
+                          if (!group) {
+                            group = { part: key, part_title: r.part_title || key, regulations: [] };
+                            partMap.set(key, group);
+                            groups.push(group);
+                          }
+                          group.regulations.push(r);
+                        }
+                        setRegParts(groups);
+                      } catch { /* */ }
+                      finally { setRegsLoading(false); }
+                    }
+                  }}
+                  className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                >
+                  <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Regs</span>
+                  <span className="text-sm text-gray-700">Prohibited Imports Regulations 1956</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    setDropdownOpen(false);
+                    setActiveView('chemicals');
+                    setActiveSchedule(null);
+                    setChemsFilter('');
+                    setExpandedChemSchedule(null);
+                    if (chemsData.length === 0) {
+                      setChemsLoading(true);
+                      try {
+                        const res = await fetch('/api/tariff/chemicals');
+                        const data: ChemicalRow[] = await res.json();
+                        setChemsData(data);
+                        const groups: ChemScheduleGroup[] = [];
+                        const schedMap = new Map<string, ChemScheduleGroup>();
+                        for (const c of data) {
+                          let group = schedMap.get(c.cwc_schedule);
+                          if (!group) {
+                            group = { schedule: c.cwc_schedule, chemicals: [] };
+                            schedMap.set(c.cwc_schedule, group);
+                            groups.push(group);
+                          }
+                          group.chemicals.push(c);
+                        }
+                        setChemGroups(groups);
+                      } catch { /* */ }
+                      finally { setChemsLoading(false); }
+                    }
+                  }}
+                  className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                >
+                  <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Chem</span>
+                  <span className="text-sm text-gray-700">Chemical Index (CWC Schedules)</span>
                 </button>
 
                 <div className="border-t border-gray-100 mx-3" />
@@ -489,43 +647,138 @@ export default function TariffSearchPage() {
               {/* Results Panel */}
               <div>
                 <h2 className="text-lg font-semibold text-gray-800 mb-3">Search Results</h2>
-                {results.length === 0 && query.length >= 2 && !loading && (
+                {results.length === 0 && searchActResults.length === 0 && searchRegsResults.length === 0 && searchChemsResults.length === 0 && query.length >= 2 && !loading && (
                   <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
                     No results found for &ldquo;{query}&rdquo;
                   </div>
                 )}
                 <div className="space-y-2 max-h-[70vh] overflow-y-auto">
-                  {results.map((r) => (
-                    <button
-                      key={r.id}
-                      onClick={() => selectTariff(r.code)}
-                      className={`w-full text-left bg-white rounded-lg shadow p-4 hover:bg-blue-50 hover:border-blue-300 border-2 transition-colors ${
-                        selectedEntry?.tariff_code === r.code ? 'border-blue-500 bg-blue-50' : 'border-transparent'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-blue-700">{r.code}</span>
-                            {r.statistical_code && (
-                              <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600">
-                                Stat: {r.statistical_code}
+                  {/* Tariff classification results */}
+                  {results.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">
+                        Tariff Classifications ({total})
+                      </p>
+                      {results.map((r) => (
+                        <button
+                          key={r.id}
+                          onClick={() => selectTariff(r.code)}
+                          className={`w-full text-left bg-white rounded-lg shadow p-4 mb-2 hover:bg-blue-50 hover:border-blue-300 border-2 transition-colors ${
+                            selectedEntry?.tariff_code === r.code ? 'border-blue-500 bg-blue-50' : 'border-transparent'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-blue-700">{r.code}</span>
+                                {r.statistical_code && (
+                                  <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600">
+                                    Stat: {r.statistical_code}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-700 mt-1">{r.description}</p>
+                              <p className="text-xs text-gray-400 mt-1">Ch.{r.chapter_number} &mdash; {r.chapter_title}</p>
+                            </div>
+                            <div className="text-right ml-4 shrink-0">
+                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                r.is_free ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {r.duty_rate || 'N/A'}
                               </span>
-                            )}
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-700 mt-1">{r.description}</p>
-                          <p className="text-xs text-gray-400 mt-1">Ch.{r.chapter_number} &mdash; {r.chapter_title}</p>
-                        </div>
-                        <div className="text-right ml-4 shrink-0">
-                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                            r.is_free ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {r.duty_rate || 'N/A'}
-                          </span>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Customs Act results */}
+                  {searchActResults.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">
+                        Customs Act 1901 ({searchActTotal})
+                      </p>
+                      {searchActResults.map((s: ActSectionRow) => (
+                        <button
+                          key={s.id}
+                          onClick={() => {
+                            setActiveView('act');
+                            setActiveSchedule(null);
+                          }}
+                          className="w-full text-left bg-white rounded-lg shadow p-3 mb-2 hover:bg-green-50 border-2 border-transparent hover:border-green-300 transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className="font-mono text-xs font-bold text-green-700 w-16 shrink-0 pt-0.5">s.{s.section_number}</span>
+                            <div className="flex-1">
+                              <p className="text-sm text-gray-700">{s.section_title}</p>
+                              <p className="text-xs text-gray-400">{s.part} — {s.part_title}</p>
+                            </div>
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded shrink-0">Act</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Prohibited Imports Regulations results */}
+                  {searchRegsResults.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">
+                        Prohibited Imports Regulations 1956 ({searchRegsTotal})
+                      </p>
+                      {searchRegsResults.map((r: RegulationRow) => (
+                        <button
+                          key={r.id}
+                          onClick={() => {
+                            setActiveView('regulations');
+                            setActiveSchedule(null);
+                          }}
+                          className="w-full text-left bg-white rounded-lg shadow p-3 mb-2 hover:bg-purple-50 border-2 border-transparent hover:border-purple-300 transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className="font-mono text-xs font-bold text-purple-700 w-16 shrink-0 pt-0.5">r.{r.regulation_number}</span>
+                            <div className="flex-1">
+                              <p className="text-sm text-gray-700">{r.regulation_title}</p>
+                              <p className="text-xs text-gray-400">{r.part} — {r.part_title}</p>
+                            </div>
+                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded shrink-0">Regs</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Chemical Index results */}
+                  {searchChemsResults.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">
+                        Chemical Index — CWC ({searchChemsTotal})
+                      </p>
+                      {searchChemsResults.map((c: ChemicalRow) => {
+                        const color = c.cwc_schedule === '1' ? 'red' : c.cwc_schedule === '2' ? 'orange' : 'yellow';
+                        return (
+                          <button
+                            key={c.id}
+                            onClick={() => {
+                              setActiveView('chemicals');
+                              setActiveSchedule(null);
+                            }}
+                            className={`w-full text-left bg-white rounded-lg shadow p-3 mb-2 hover:bg-${color}-50 border-2 border-transparent hover:border-${color}-300 transition-colors`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <span className={`font-mono text-xs font-bold text-${color}-700 w-16 shrink-0 pt-0.5`}>S{c.cwc_schedule}.{c.item_number}</span>
+                              <div className="flex-1">
+                                <p className="text-sm text-gray-700">{c.chemical_name}</p>
+                                <p className="text-xs text-gray-400">{c.cas_number ? `CAS: ${c.cas_number}` : ''} {c.category}</p>
+                              </div>
+                              <span className={`text-xs bg-${color}-100 text-${color}-700 px-2 py-0.5 rounded shrink-0`}>CWC {c.cwc_schedule}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -722,6 +975,188 @@ export default function TariffSearchPage() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        ) : activeView === 'regulations' ? (
+          // ── Prohibited Imports Regulations ───────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Search
+              </button>
+              <a
+                href="https://www.legislation.gov.au/F1956L01153/latest/text"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                View on legislation.gov.au <ExternalIcon />
+              </a>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">Customs (Prohibited Imports) Regulations 1956</h2>
+              <input
+                type="text"
+                value={regsFilter}
+                onChange={(e) => setRegsFilter(e.target.value)}
+                placeholder="Search regulations..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              />
+              <p className="text-xs text-gray-400 mt-2">
+                {filteredRegParts.length} of {regParts.length} parts ({regsData.length} regulations total)
+              </p>
+            </div>
+
+            {regsLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                <p className="text-gray-500 mt-4">Loading regulations...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredRegParts.map((pg) => (
+                  <div key={pg.part} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button
+                      onClick={() => setExpandedRegPart(expandedRegPart === pg.part ? null : pg.part)}
+                      className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-blue-50 transition-colors"
+                    >
+                      <div>
+                        <span className="font-mono font-bold text-blue-700 mr-3">{pg.part}</span>
+                        <span className="text-gray-800">{pg.part_title}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{pg.regulations.length} regs</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedRegPart === pg.part ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+                    {expandedRegPart === pg.part && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {pg.regulations.map((r) => (
+                          <div key={r.id} className="px-6 py-2 text-sm hover:bg-blue-50 transition-colors">
+                            <div className="flex items-start gap-3">
+                              <span className="font-mono text-blue-600 font-medium w-24 shrink-0">r.{r.regulation_number}</span>
+                              <div className="flex-1">
+                                <span className="text-gray-700">{r.regulation_title}</span>
+                                {r.category && (
+                                  <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{r.category}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : activeView === 'chemicals' ? (
+          // ── Chemical Index ──────────────────────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Search
+              </button>
+              <a
+                href="https://www.opcw.org/chemical-weapons-convention/annexes/annex-chemicals"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                View on OPCW <ExternalIcon />
+              </a>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">Chemical Index — CWC Scheduled Chemicals</h2>
+              <p className="text-xs text-gray-500 mb-3">
+                Schedule 11 of the Customs (Prohibited Imports) Regulations 1956 — Chemical Weapons Convention Schedules 1-3
+              </p>
+              <input
+                type="text"
+                value={chemsFilter}
+                onChange={(e) => setChemsFilter(e.target.value)}
+                placeholder="Search by chemical name, CAS number..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              />
+              <p className="text-xs text-gray-400 mt-2">
+                {filteredChemGroups.reduce((sum, g) => sum + g.chemicals.length, 0)} of {chemsData.length} chemicals
+              </p>
+            </div>
+
+            {chemsLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                <p className="text-gray-500 mt-4">Loading chemicals...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredChemGroups.map((g) => {
+                  const scheduleLabel = g.schedule === '1' ? 'CWC Schedule 1 — Highest risk' : g.schedule === '2' ? 'CWC Schedule 2 — Significant risk' : 'CWC Schedule 3 — Dual-use chemicals';
+                  const scheduleColor = g.schedule === '1' ? 'text-red-700' : g.schedule === '2' ? 'text-orange-700' : 'text-yellow-700';
+                  const badgeColor = g.schedule === '1' ? 'bg-red-100 text-red-700' : g.schedule === '2' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700';
+                  return (
+                    <div key={g.schedule} className="bg-white rounded-lg shadow overflow-hidden">
+                      <button
+                        onClick={() => setExpandedChemSchedule(expandedChemSchedule === g.schedule ? null : g.schedule)}
+                        className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-blue-50 transition-colors"
+                      >
+                        <div>
+                          <span className={`font-mono font-bold mr-3 ${scheduleColor}`}>Schedule {g.schedule}</span>
+                          <span className="text-gray-800">{scheduleLabel}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-4">
+                          <span className="text-xs text-gray-400">{g.chemicals.length} chemicals</span>
+                          <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedChemSchedule === g.schedule ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </button>
+                      {expandedChemSchedule === g.schedule && (
+                        <div className="border-t border-gray-100">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 w-16">Item</th>
+                                  <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500">Chemical Name</th>
+                                  <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 w-32">CAS No.</th>
+                                  <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 w-28">Category</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-50">
+                                {g.chemicals.map((c) => (
+                                  <tr key={c.id} className="hover:bg-blue-50 transition-colors">
+                                    <td className="px-4 py-2 font-mono text-blue-600 text-xs">{c.item_number}</td>
+                                    <td className="px-4 py-2 text-gray-700">
+                                      {c.chemical_name}
+                                      {c.notes && <span className="text-xs text-gray-400 ml-2">({c.notes})</span>}
+                                    </td>
+                                    <td className="px-4 py-2 font-mono text-xs text-gray-600">{c.cas_number || '—'}</td>
+                                    <td className="px-4 py-2">
+                                      <span className={`text-xs px-2 py-0.5 rounded ${badgeColor}`}>{c.category}</span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
