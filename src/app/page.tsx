@@ -184,7 +184,7 @@ interface BioChapterGroup { chapter: string; chapter_title: string; entries: Bio
 
 // ── Commerce (Trade Descriptions) ─────────────────────────────────
 
-interface TdActRow { id: number; part: string; part_title: string; section_number: string; section_title: string; }
+interface TdActRow { id: number; part: string; part_title: string; section_number: string; section_title: string; content: string | null; }
 interface TdActPartGroup { part: string; part_title: string; sections: TdActRow[]; }
 
 interface TdRegRow { id: number; part: string; part_title: string; division: string | null; division_title: string | null; subdivision: string | null; regulation_number: string; regulation_title: string; }
@@ -379,6 +379,7 @@ export default function TariffSearchPage() {
   const [tdRegsParts, setTdRegsParts] = useState<TdRegPartGroup[]>([]);
   const [expandedTdRegsPart, setExpandedTdRegsPart] = useState<string | null>(null);
   const [tdRegsLoading, setTdRegsLoading] = useState(false);
+  const [expandedTdSection, setExpandedTdSection] = useState<number | null>(null);
 
   // Dumping notices data
   const [dumpData, setDumpData] = useState<DumpingRow[]>([]);
@@ -1975,16 +1976,24 @@ export default function TariffSearchPage() {
                                 const num = isSection ? (item as TdActRow).section_number : (item as TdRegRow).regulation_number;
                                 const title2 = isSection ? (item as TdActRow).section_title : (item as TdRegRow).regulation_title;
                                 const reg = !isSection ? (item as TdRegRow) : null;
+                                const sectionContent = isSection ? (item as TdActRow).content : null;
+                                const isExpanded = expandedTdSection === item.id;
                                 return (
                                   <div key={item.id} className="px-6 py-2 text-sm hover:bg-purple-50 transition-colors">
-                                    <div className="flex items-start gap-3">
+                                    <button onClick={() => setExpandedTdSection(isExpanded ? null : item.id)} className="w-full text-left flex items-start gap-3">
                                       <span className="font-mono text-purple-600 font-medium w-16 shrink-0">{isSection ? `s.${num}` : `r.${num}`}</span>
                                       <div className="flex-1">
-                                        <span className="text-gray-700">{title2}</span>
+                                        <span className="text-gray-700 font-medium">{title2}</span>
                                         {reg?.division && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{reg.division}</span>}
                                         {reg?.subdivision && <p className="text-xs text-gray-400 mt-0.5">{reg.subdivision}</p>}
+                                        {sectionContent && <span className="text-xs text-purple-400 ml-2">{isExpanded ? '▲' : '▼'}</span>}
                                       </div>
-                                    </div>
+                                    </button>
+                                    {isExpanded && sectionContent && (
+                                      <div className="mt-2 ml-19 pl-16 border-l-2 border-purple-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">
+                                        {sectionContent}
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })}
