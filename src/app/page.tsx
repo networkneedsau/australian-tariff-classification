@@ -81,7 +81,7 @@ interface FtaExclusionRow {
 
 // ── Customs Act 1901 ───────────────────────────────────────────────
 
-const LEGISLATION_BASE = 'https://www.legislation.gov.au/C1901A00006/latest/text';
+// All legislation is served locally — no external links
 
 interface ActSectionRow {
   id: number;
@@ -1162,11 +1162,6 @@ export default function TariffSearchPage() {
                     <span className="text-sm text-gray-700">Biosecurity Regulation 2016</span>
                   </button>
 
-                  <div className="border-t border-gray-100 mx-3" />
-
-                  <a href="https://www.legislation.gov.au" target="_blank" rel="noopener noreferrer" className="block px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2">
-                    View on legislation.gov.au <ExternalIcon />
-                  </a>
                 </div>
               )}
             </div>
@@ -1203,17 +1198,6 @@ export default function TariffSearchPage() {
                   <ScheduleMenuItem key={s.id} schedule={s} onClick={() => selectSchedule(s)} />
                 ))}
 
-                {/* ABF Link */}
-                <div className="border-t border-gray-100 mx-3" />
-                <a
-                  href={ABF_BASE}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-                >
-                  View all on ABF website
-                  <ExternalIcon />
-                </a>
               </div>
             )}
           </div>
@@ -1538,14 +1522,6 @@ export default function TariffSearchPage() {
                 </svg>
                 Back to Search
               </button>
-              <a
-                href={LEGISLATION_BASE}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
-              >
-                View full Act on legislation.gov.au <ExternalIcon />
-              </a>
             </div>
 
             <div className="bg-white rounded-lg shadow p-4 mb-4">
@@ -1621,14 +1597,6 @@ export default function TariffSearchPage() {
                 </svg>
                 Back to Search
               </button>
-              <a
-                href="https://www.legislation.gov.au/F1956L01153/latest/text"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
-              >
-                View on legislation.gov.au <ExternalIcon />
-              </a>
             </div>
 
             <div className="bg-white rounded-lg shadow p-4 mb-4">
@@ -1699,9 +1667,6 @@ export default function TariffSearchPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                 Back to Search
               </button>
-              <a href="https://www.legislation.gov.au/C2004A00446/latest/text" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                View on legislation.gov.au <ExternalIcon />
-              </a>
             </div>
             <div className="bg-white rounded-lg shadow p-4 mb-4">
               <h2 className="text-xl font-semibold text-gray-800 mb-1">A New Tax System (Goods and Services Tax) Act 1999</h2>
@@ -1755,9 +1720,6 @@ export default function TariffSearchPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                 Back to Search
               </button>
-              <a href="https://www.legislation.gov.au/F2019L00417/latest/text" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                View on legislation.gov.au <ExternalIcon />
-              </a>
             </div>
             <div className="bg-white rounded-lg shadow p-4 mb-4">
               <h2 className="text-xl font-semibold text-gray-800 mb-1">A New Tax System (Goods and Services Tax) Regulations 2019</h2>
@@ -1809,7 +1771,6 @@ export default function TariffSearchPage() {
           (() => {
             const isBioAct = activeView === 'bio-act';
             const title = isBioAct ? 'Biosecurity Act 2015' : 'Biosecurity Regulation 2016';
-            const legUrl = isBioAct ? 'https://www.legislation.gov.au/C2015A00061/latest/text' : 'https://www.legislation.gov.au/F2016L00756/latest/text';
             const data = isBioAct ? bioActData : bioRegsData;
             const chapters = isBioAct ? filteredBioActChapters : filteredBioRegsChapters;
             const allChapters = isBioAct ? bioActChapters : bioRegsChapters;
@@ -1825,9 +1786,6 @@ export default function TariffSearchPage() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     Back to Search
                   </button>
-                  <a href={legUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                    View on legislation.gov.au <ExternalIcon />
-                  </a>
                 </div>
                 <div className="bg-white rounded-lg shadow p-4 mb-4">
                   <h2 className="text-xl font-semibold text-gray-800 mb-1">{title}</h2>
@@ -1886,9 +1844,6 @@ export default function TariffSearchPage() {
                 </svg>
                 Back to Search
               </button>
-              <a href="https://www.industry.gov.au/anti-dumping-commission/current-measures-dumping-commodity-register-dcr" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                DCR on industry.gov.au <ExternalIcon />
-              </a>
             </div>
 
             <div className="bg-white rounded-lg shadow p-4 mb-4">
@@ -1950,9 +1905,6 @@ export default function TariffSearchPage() {
                 </svg>
                 Back to Search
               </button>
-              <a href="https://www.abf.gov.au/help-and-support/ics/integrated-cargo-system-(ics)/software-developers/reference-materials/reference-files" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                ABF Reference <ExternalIcon />
-              </a>
             </div>
 
             <div className="bg-white rounded-lg shadow p-4 mb-4">
@@ -2276,14 +2228,6 @@ export default function TariffSearchPage() {
                 </svg>
                 Back to Search
               </button>
-              <a
-                href={activeSchedule.abfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
-              >
-                View on ABF website <ExternalIcon />
-              </a>
             </div>
 
             {scheduleLoading ? (
@@ -2425,15 +2369,7 @@ export default function TariffSearchPage() {
               <div>
                 {ftaExclusions.length === 0 ? (
                   <div className="bg-white rounded-lg shadow p-8 text-center">
-                    <p className="text-gray-500 mb-4">No local exclusion data available for {activeSchedule.label}.</p>
-                    <a
-                      href={activeSchedule.abfUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
-                    >
-                      View on ABF website <ExternalIcon />
-                    </a>
+                    <p className="text-gray-500 mb-4">No local data available for {activeSchedule.label} yet.</p>
                   </div>
                 ) : (
                   <div>
