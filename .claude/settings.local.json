@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"C:/Users/AnthonyGil-Munoz/OneDrive - networkneeds.com.au/Documents/Avis Customs & Forwarding/\")",
+      "Bash(npx prisma:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npx tsc:*)",
+      "Bash(wc -c \"C:/Users/AnthonyGil-Munoz/OneDrive - networkneeds.com.au/Documents/Logistica/freight project/compass/apps/api/prisma/tariff-data/\"*.json)",
+      "Bash(node -e \":*)",
+      "Bash(docker exec:*)",
+      "Bash(DATABASE_URL=\"postgresql://freight:freight@localhost:5432/compass?schema=public\" npx tsx scripts/seed-tariff.ts)",
+      "Bash(curl -s http://localhost:3001/tariff/sections)",
+      "Bash(curl -s http://localhost:3001/v1/tariff/sections)",
+      "Bash(curl -s http://localhost:3001/v1/tariff/sections -H \"Authorization: Bearer test\")",
+      "Bash(curl -s http://localhost:3001/)",
+      "Bash(curl -s http://localhost:3001/api-docs-json)",
+      "Bash(pkill -f 'node dist/main')",
+      "Bash(npx nest:*)",
+      "Bash(curl -s http://localhost:3001/v1/tariff-db/sections)",
+      "Bash(timeout 10 node dist/main.js)",
+      "Bash(curl -s -X POST http://localhost:3001/v1/auth/login -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"admin@wallace.com.au\"\",\"\"password\"\":\"\"password123\"\",\"\"tenantSlug\"\":\"\"wallace\"\"}')",
+      "Bash(curl -sv -X POST http://localhost:3001/v1/auth/login -H \"Content-Type: application/json\" -d '{\"\"\"\"email\"\"\"\":\"\"\"\"admin@wallace.com.au\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"Admin123!\"\"\"\",\"\"\"\"tenantSlug\"\"\"\":\"\"\"\"wallace\"\"\"\"}')",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack)"
+    ]
+  }
+}
