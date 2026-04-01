@@ -93,6 +93,7 @@ interface ActSectionRow {
   subdivision_title: string | null;
   section_number: string;
   section_title: string;
+  content: string | null;
 }
 
 interface ActPartGroup {
@@ -341,6 +342,7 @@ export default function TariffSearchPage() {
   const [actParts, setActParts] = useState<ActPartGroup[]>([]);
   const [expandedPart, setExpandedPart] = useState<string | null>(null);
   const [actLoading, setActLoading] = useState(false);
+  const [expandedActSection, setExpandedActSection] = useState<number | null>(null);
 
   // Prohibited Imports Regulations data
   const [regsData, setRegsData] = useState<RegulationRow[]>([]);
@@ -1660,15 +1662,21 @@ export default function TariffSearchPage() {
                             key={s.id}
                             className="px-6 py-2 text-sm hover:bg-blue-50 transition-colors"
                           >
-                            <div className="flex items-start gap-3">
+                            <button onClick={() => setExpandedActSection(expandedActSection === s.id ? null : s.id)} className="w-full text-left flex items-start gap-3">
                               <span className="font-mono text-blue-600 font-medium w-16 shrink-0">s.{s.section_number}</span>
                               <div className="flex-1">
-                                <span className="text-gray-700">{s.section_title}</span>
+                                <span className="text-gray-700 font-medium">{s.section_title}</span>
                                 {s.division_title && (
                                   <span className="text-xs text-gray-400 ml-2">({s.division_title})</span>
                                 )}
+                                {s.content && <span className="text-xs text-blue-400 ml-2">{expandedActSection === s.id ? '\u25B2' : '\u25BC'}</span>}
                               </div>
-                            </div>
+                            </button>
+                            {expandedActSection === s.id && s.content && (
+                              <div className="mt-2 ml-16 pl-4 border-l-2 border-blue-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">
+                                {s.content}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
