@@ -215,6 +215,8 @@ export default function TariffSearchPage() {
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [complianceDropdownOpen, setComplianceDropdownOpen] = useState(false);
+  const complianceDropdownRef = useRef<HTMLDivElement>(null);
 
   // Schedule data
   const [sections, setSections] = useState<SectionData[]>([]);
@@ -257,11 +259,14 @@ export default function TariffSearchPage() {
   const [sectionsFilter, setSectionsFilter] = useState('');
   const [ftaFilter, setFtaFilter] = useState('');
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
+      }
+      if (complianceDropdownRef.current && !complianceDropdownRef.current.contains(e.target as Node)) {
+        setComplianceDropdownOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -497,166 +502,194 @@ export default function TariffSearchPage() {
             </p>
           </div>
 
-          {/* Dropdown */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-            >
-              Browse Schedules
-              <svg className={`w-4 h-4 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+          {/* Dropdowns row */}
+          <div className="flex items-center gap-2">
+            {/* Compliance & Prohibited Goods Dropdown */}
+            <div className="relative" ref={complianceDropdownRef}>
+              <button
+                onClick={() => { setComplianceDropdownOpen(!complianceDropdownOpen); setDropdownOpen(false); }}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                Compliance
+                <svg className={`w-4 h-4 transition-transform ${complianceDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
 
-            {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[80vh] overflow-y-auto">
-                {/* Customs Act 1901 */}
-                <div className="px-3 pt-3 pb-1">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Legislation</p>
+              {complianceDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[80vh] overflow-y-auto">
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Prohibited & Restricted Goods</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false);
+                      setActiveView('regulations');
+                      setActiveSchedule(null);
+                      setRegsFilter('');
+                      setExpandedRegPart(null);
+                      if (regsData.length === 0) {
+                        setRegsLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/regulations');
+                          const data: RegulationRow[] = await res.json();
+                          setRegsData(data);
+                          const groups: RegPartGroup[] = [];
+                          const partMap = new Map<string, RegPartGroup>();
+                          for (const r of data) {
+                            const key = r.part || 'Other';
+                            let group = partMap.get(key);
+                            if (!group) {
+                              group = { part: key, part_title: r.part_title || key, regulations: [] };
+                              partMap.set(key, group);
+                              groups.push(group);
+                            }
+                            group.regulations.push(r);
+                          }
+                          setRegParts(groups);
+                        } catch { /* */ }
+                        finally { setRegsLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-red-700 w-24 shrink-0 pt-0.5">Regs</span>
+                    <span className="text-sm text-gray-700">Prohibited Imports Regulations 1956</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false);
+                      setActiveView('chemicals');
+                      setActiveSchedule(null);
+                      setChemsFilter('');
+                      setExpandedChemSchedule(null);
+                      if (chemsData.length === 0) {
+                        setChemsLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/chemicals');
+                          const data: ChemicalRow[] = await res.json();
+                          setChemsData(data);
+                          const groups: ChemScheduleGroup[] = [];
+                          const schedMap = new Map<string, ChemScheduleGroup>();
+                          for (const c of data) {
+                            let group = schedMap.get(c.cwc_schedule);
+                            if (!group) {
+                              group = { schedule: c.cwc_schedule, chemicals: [] };
+                              schedMap.set(c.cwc_schedule, group);
+                              groups.push(group);
+                            }
+                            group.chemicals.push(c);
+                          }
+                          setChemGroups(groups);
+                        } catch { /* */ }
+                        finally { setChemsLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-red-700 w-24 shrink-0 pt-0.5">Chem</span>
+                    <span className="text-sm text-gray-700">Chemical Index (CWC Schedules)</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 mx-3" />
+
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Export Classification</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false);
+                      setActiveView('ahecc');
+                      setActiveSchedule(null);
+                      setAheccFilter('');
+                      setExpandedAheccSection(null);
+                      if (aheccData.length === 0) {
+                        setAheccLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/ahecc');
+                          const data: AHECCRow[] = await res.json();
+                          setAheccData(data);
+                          const groups: AHECCSectionGroup[] = [];
+                          const secMap = new Map<string, AHECCSectionGroup>();
+                          for (const r of data) {
+                            let group = secMap.get(r.section_number);
+                            if (!group) {
+                              group = { section_number: r.section_number, section_title: r.section_title, chapters: [] };
+                              secMap.set(r.section_number, group);
+                              groups.push(group);
+                            }
+                            group.chapters.push(r);
+                          }
+                          setAheccSections(groups);
+                        } catch { /* */ }
+                        finally { setAheccLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-teal-700 w-24 shrink-0 pt-0.5">AHECC</span>
+                    <span className="text-sm text-gray-700">Export Commodity Classification</span>
+                  </button>
                 </div>
-                <button
-                  onClick={async () => {
-                    setDropdownOpen(false);
-                    setActiveView('act');
-                    setActiveSchedule(null);
-                    setActFilter('');
-                    setExpandedPart(null);
-                    if (actSections.length === 0) {
-                      setActLoading(true);
-                      try {
-                        const res = await fetch('/api/tariff/act');
-                        const data: ActSectionRow[] = await res.json();
-                        setActSections(data);
-                        // Group by part
-                        const groups: ActPartGroup[] = [];
-                        const partMap = new Map<string, ActPartGroup>();
-                        for (const s of data) {
-                          let group = partMap.get(s.part);
-                          if (!group) {
-                            group = { part: s.part, part_title: s.part_title, sections: [] };
-                            partMap.set(s.part, group);
-                            groups.push(group);
-                          }
-                          group.sections.push(s);
-                        }
-                        setActParts(groups);
-                      } catch { /* */ }
-                      finally { setActLoading(false); }
-                    }
-                  }}
-                  className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                >
-                  <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Act</span>
-                  <span className="text-sm text-gray-700">Customs Act 1901</span>
-                </button>
-                <button
-                  onClick={async () => {
-                    setDropdownOpen(false);
-                    setActiveView('regulations');
-                    setActiveSchedule(null);
-                    setRegsFilter('');
-                    setExpandedRegPart(null);
-                    if (regsData.length === 0) {
-                      setRegsLoading(true);
-                      try {
-                        const res = await fetch('/api/tariff/regulations');
-                        const data: RegulationRow[] = await res.json();
-                        setRegsData(data);
-                        const groups: RegPartGroup[] = [];
-                        const partMap = new Map<string, RegPartGroup>();
-                        for (const r of data) {
-                          const key = r.part || 'Other';
-                          let group = partMap.get(key);
-                          if (!group) {
-                            group = { part: key, part_title: r.part_title || key, regulations: [] };
-                            partMap.set(key, group);
-                            groups.push(group);
-                          }
-                          group.regulations.push(r);
-                        }
-                        setRegParts(groups);
-                      } catch { /* */ }
-                      finally { setRegsLoading(false); }
-                    }
-                  }}
-                  className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                >
-                  <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Regs</span>
-                  <span className="text-sm text-gray-700">Prohibited Imports Regulations 1956</span>
-                </button>
-                <button
-                  onClick={async () => {
-                    setDropdownOpen(false);
-                    setActiveView('chemicals');
-                    setActiveSchedule(null);
-                    setChemsFilter('');
-                    setExpandedChemSchedule(null);
-                    if (chemsData.length === 0) {
-                      setChemsLoading(true);
-                      try {
-                        const res = await fetch('/api/tariff/chemicals');
-                        const data: ChemicalRow[] = await res.json();
-                        setChemsData(data);
-                        const groups: ChemScheduleGroup[] = [];
-                        const schedMap = new Map<string, ChemScheduleGroup>();
-                        for (const c of data) {
-                          let group = schedMap.get(c.cwc_schedule);
-                          if (!group) {
-                            group = { schedule: c.cwc_schedule, chemicals: [] };
-                            schedMap.set(c.cwc_schedule, group);
-                            groups.push(group);
-                          }
-                          group.chemicals.push(c);
-                        }
-                        setChemGroups(groups);
-                      } catch { /* */ }
-                      finally { setChemsLoading(false); }
-                    }
-                  }}
-                  className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                >
-                  <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Chem</span>
-                  <span className="text-sm text-gray-700">Chemical Index (CWC Schedules)</span>
-                </button>
-                <button
-                  onClick={async () => {
-                    setDropdownOpen(false);
-                    setActiveView('ahecc');
-                    setActiveSchedule(null);
-                    setAheccFilter('');
-                    setExpandedAheccSection(null);
-                    if (aheccData.length === 0) {
-                      setAheccLoading(true);
-                      try {
-                        const res = await fetch('/api/tariff/ahecc');
-                        const data: AHECCRow[] = await res.json();
-                        setAheccData(data);
-                        const groups: AHECCSectionGroup[] = [];
-                        const secMap = new Map<string, AHECCSectionGroup>();
-                        for (const r of data) {
-                          let group = secMap.get(r.section_number);
-                          if (!group) {
-                            group = { section_number: r.section_number, section_title: r.section_title, chapters: [] };
-                            secMap.set(r.section_number, group);
-                            groups.push(group);
-                          }
-                          group.chapters.push(r);
-                        }
-                        setAheccSections(groups);
-                      } catch { /* */ }
-                      finally { setAheccLoading(false); }
-                    }
-                  }}
-                  className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                >
-                  <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">AHECC</span>
-                  <span className="text-sm text-gray-700">Export Commodity Classification</span>
-                </button>
+              )}
+            </div>
 
-                <div className="border-t border-gray-100 mx-3" />
+            {/* Browse Schedules Dropdown */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => { setDropdownOpen(!dropdownOpen); setComplianceDropdownOpen(false); }}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                Browse Schedules
+                <svg className={`w-4 h-4 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
 
-                {/* Main Schedules */}
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[80vh] overflow-y-auto">
+                  {/* Customs Act 1901 */}
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Legislation</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setDropdownOpen(false);
+                      setActiveView('act');
+                      setActiveSchedule(null);
+                      setActFilter('');
+                      setExpandedPart(null);
+                      if (actSections.length === 0) {
+                        setActLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/act');
+                          const data: ActSectionRow[] = await res.json();
+                          setActSections(data);
+                          const groups: ActPartGroup[] = [];
+                          const partMap = new Map<string, ActPartGroup>();
+                          for (const s of data) {
+                            let group = partMap.get(s.part);
+                            if (!group) {
+                              group = { part: s.part, part_title: s.part_title, sections: [] };
+                              partMap.set(s.part, group);
+                              groups.push(group);
+                            }
+                            group.sections.push(s);
+                          }
+                          setActParts(groups);
+                        } catch { /* */ }
+                        finally { setActLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Act</span>
+                    <span className="text-sm text-gray-700">Customs Act 1901</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 mx-3" />
+
+                  {/* Main Schedules */}
                 <div className="px-3 pt-3 pb-1">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Main Schedules</p>
                 </div>
@@ -688,6 +721,7 @@ export default function TariffSearchPage() {
               </div>
             )}
           </div>
+        </div>
         </div>
       </header>
 
