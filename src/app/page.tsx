@@ -135,6 +135,43 @@ interface ChemScheduleGroup {
   chemicals: ChemicalRow[];
 }
 
+// ── GST Act 1999 ──────────────────────────────────────────────────
+
+interface GstActRow {
+  id: number;
+  chapter: string;
+  chapter_title: string;
+  part: string | null;
+  part_title: string | null;
+  division: string;
+  division_title: string;
+}
+
+interface GstActChapterGroup {
+  chapter: string;
+  chapter_title: string;
+  divisions: GstActRow[];
+}
+
+// ── GST Regulations 2019 ──────────────────────────────────────────
+
+interface GstRegRow {
+  id: number;
+  chapter: string;
+  chapter_title: string;
+  part: string | null;
+  part_title: string | null;
+  division: string;
+  division_title: string;
+  subdivision: string | null;
+}
+
+interface GstRegChapterGroup {
+  chapter: string;
+  chapter_title: string;
+  divisions: GstRegRow[];
+}
+
 // ── Dumping Notices ────────────────────────────────────────────────
 
 interface DumpingRow {
@@ -263,12 +300,14 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [complianceDropdownOpen, setComplianceDropdownOpen] = useState(false);
   const complianceDropdownRef = useRef<HTMLDivElement>(null);
+  const [legislationDropdownOpen, setLegislationDropdownOpen] = useState(false);
+  const legislationDropdownRef = useRef<HTMLDivElement>(null);
 
   // Schedule data
   const [sections, setSections] = useState<SectionData[]>([]);
@@ -289,6 +328,18 @@ export default function TariffSearchPage() {
   const [regParts, setRegParts] = useState<RegPartGroup[]>([]);
   const [expandedRegPart, setExpandedRegPart] = useState<string | null>(null);
   const [regsLoading, setRegsLoading] = useState(false);
+
+  // GST Act data
+  const [gstActData, setGstActData] = useState<GstActRow[]>([]);
+  const [gstActChapters, setGstActChapters] = useState<GstActChapterGroup[]>([]);
+  const [expandedGstActCh, setExpandedGstActCh] = useState<string | null>(null);
+  const [gstActLoading, setGstActLoading] = useState(false);
+
+  // GST Regs data
+  const [gstRegsData, setGstRegsData] = useState<GstRegRow[]>([]);
+  const [gstRegsChapters, setGstRegsChapters] = useState<GstRegChapterGroup[]>([]);
+  const [expandedGstRegsCh, setExpandedGstRegsCh] = useState<string | null>(null);
+  const [gstRegsLoading, setGstRegsLoading] = useState(false);
 
   // Dumping notices data
   const [dumpData, setDumpData] = useState<DumpingRow[]>([]);
@@ -328,6 +379,8 @@ export default function TariffSearchPage() {
   const [refFilter, setRefFilter] = useState('');
   const [cpFilter, setCpFilter] = useState('');
   const [dumpFilter, setDumpFilter] = useState('');
+  const [gstActFilter, setGstActFilter] = useState('');
+  const [gstRegsFilter, setGstRegsFilter] = useState('');
   const [rulesFilter, setRulesFilter] = useState('');
   const [sectionsFilter, setSectionsFilter] = useState('');
   const [ftaFilter, setFtaFilter] = useState('');
@@ -340,6 +393,9 @@ export default function TariffSearchPage() {
       }
       if (complianceDropdownRef.current && !complianceDropdownRef.current.contains(e.target as Node)) {
         setComplianceDropdownOpen(false);
+      }
+      if (legislationDropdownRef.current && !legislationDropdownRef.current.contains(e.target as Node)) {
+        setLegislationDropdownOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -487,6 +543,29 @@ export default function TariffSearchPage() {
       )
     : actParts;
 
+  const filteredGstActChapters = gstActFilter
+    ? gstActChapters.map(c => ({
+        ...c,
+        divisions: c.divisions.filter(d =>
+          d.division.toLowerCase().includes(gstActFilter.toLowerCase()) ||
+          d.division_title.toLowerCase().includes(gstActFilter.toLowerCase()) ||
+          (d.part_title || '').toLowerCase().includes(gstActFilter.toLowerCase())
+        )
+      })).filter(c => c.divisions.length > 0)
+    : gstActChapters;
+
+  const filteredGstRegsChapters = gstRegsFilter
+    ? gstRegsChapters.map(c => ({
+        ...c,
+        divisions: c.divisions.filter(d =>
+          d.division.toLowerCase().includes(gstRegsFilter.toLowerCase()) ||
+          d.division_title.toLowerCase().includes(gstRegsFilter.toLowerCase()) ||
+          (d.part_title || '').toLowerCase().includes(gstRegsFilter.toLowerCase()) ||
+          (d.subdivision || '').toLowerCase().includes(gstRegsFilter.toLowerCase())
+        )
+      })).filter(c => c.divisions.length > 0)
+    : gstRegsChapters;
+
   const filteredDumpCategories = dumpFilter
     ? dumpCategories.map(c => ({
         ...c,
@@ -601,7 +680,11 @@ export default function TariffSearchPage() {
                 ? 'Customs Act 1901 — Table of Contents'
                 : activeView === 'regulations'
                   ? 'Customs (Prohibited Imports) Regulations 1956'
-                  : activeView === 'chemicals'
+                  : activeView === 'gst-act'
+                    ? 'GST Act 1999 — Table of Contents'
+                    : activeView === 'gst-regs'
+                      ? 'GST Regulations 2019'
+                      : activeView === 'chemicals'
                     ? 'Chemical Index — CWC Scheduled Chemicals'
                     : activeView === 'ahecc'
                       ? 'AHECC — Export Commodity Classification'
@@ -622,7 +705,7 @@ export default function TariffSearchPage() {
             {/* Compliance & Prohibited Goods Dropdown */}
             <div className="relative" ref={complianceDropdownRef}>
               <button
-                onClick={() => { setComplianceDropdownOpen(!complianceDropdownOpen); setDropdownOpen(false); }}
+                onClick={() => { setComplianceDropdownOpen(!complianceDropdownOpen); setDropdownOpen(false); setLegislationDropdownOpen(false); }}
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
               >
                 Compliance
@@ -676,41 +759,6 @@ export default function TariffSearchPage() {
                   <div className="px-3 pt-3 pb-1">
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Prohibited & Restricted Goods</p>
                   </div>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false);
-                      setActiveView('regulations');
-                      setActiveSchedule(null);
-                      setRegsFilter('');
-                      setExpandedRegPart(null);
-                      if (regsData.length === 0) {
-                        setRegsLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/regulations');
-                          const data: RegulationRow[] = await res.json();
-                          setRegsData(data);
-                          const groups: RegPartGroup[] = [];
-                          const partMap = new Map<string, RegPartGroup>();
-                          for (const r of data) {
-                            const key = r.part || 'Other';
-                            let group = partMap.get(key);
-                            if (!group) {
-                              group = { part: key, part_title: r.part_title || key, regulations: [] };
-                              partMap.set(key, group);
-                              groups.push(group);
-                            }
-                            group.regulations.push(r);
-                          }
-                          setRegParts(groups);
-                        } catch { /* */ }
-                        finally { setRegsLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-red-700 w-24 shrink-0 pt-0.5">Regs</span>
-                    <span className="text-sm text-gray-700">Prohibited Imports Regulations 1956</span>
-                  </button>
                   <button
                     onClick={async () => {
                       setComplianceDropdownOpen(false);
@@ -863,27 +911,25 @@ export default function TariffSearchPage() {
               )}
             </div>
 
-            {/* Browse Schedules Dropdown */}
-            <div className="relative" ref={dropdownRef}>
+            {/* Legislation Dropdown */}
+            <div className="relative" ref={legislationDropdownRef}>
               <button
-                onClick={() => { setDropdownOpen(!dropdownOpen); setComplianceDropdownOpen(false); }}
+                onClick={() => { setLegislationDropdownOpen(!legislationDropdownOpen); setDropdownOpen(false); setComplianceDropdownOpen(false); }}
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
               >
-                Browse Schedules
-                <svg className={`w-4 h-4 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                Legislation
+                <svg className={`w-4 h-4 transition-transform ${legislationDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-
-              {dropdownOpen && (
+              {legislationDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[80vh] overflow-y-auto">
-                  {/* Customs Act 1901 */}
                   <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Legislation</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Acts</p>
                   </div>
                   <button
                     onClick={async () => {
-                      setDropdownOpen(false);
+                      setLegislationDropdownOpen(false);
                       setActiveView('act');
                       setActiveSchedule(null);
                       setActFilter('');
@@ -918,6 +964,134 @@ export default function TariffSearchPage() {
 
                   <div className="border-t border-gray-100 mx-3" />
 
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Regulations</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setLegislationDropdownOpen(false);
+                      setActiveView('regulations');
+                      setActiveSchedule(null);
+                      setRegsFilter('');
+                      setExpandedRegPart(null);
+                      if (regsData.length === 0) {
+                        setRegsLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/regulations');
+                          const data: RegulationRow[] = await res.json();
+                          setRegsData(data);
+                          const groups: RegPartGroup[] = [];
+                          const partMap = new Map<string, RegPartGroup>();
+                          for (const r of data) {
+                            const key = r.part || 'Other';
+                            let group = partMap.get(key);
+                            if (!group) {
+                              group = { part: key, part_title: r.part_title || key, regulations: [] };
+                              partMap.set(key, group);
+                              groups.push(group);
+                            }
+                            group.regulations.push(r);
+                          }
+                          setRegParts(groups);
+                        } catch { /* */ }
+                        finally { setRegsLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Regs</span>
+                    <span className="text-sm text-gray-700">Prohibited Imports Regulations 1956</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 mx-3" />
+
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tax</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setLegislationDropdownOpen(false);
+                      setActiveView('gst-act');
+                      setActiveSchedule(null);
+                      setGstActFilter('');
+                      setExpandedGstActCh(null);
+                      if (gstActData.length === 0) {
+                        setGstActLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/gst-act');
+                          const data: GstActRow[] = await res.json();
+                          setGstActData(data);
+                          const groups: GstActChapterGroup[] = [];
+                          const chMap = new Map<string, GstActChapterGroup>();
+                          for (const d of data) {
+                            let g = chMap.get(d.chapter);
+                            if (!g) { g = { chapter: d.chapter, chapter_title: d.chapter_title, divisions: [] }; chMap.set(d.chapter, g); groups.push(g); }
+                            g.divisions.push(d);
+                          }
+                          setGstActChapters(groups);
+                        } catch { /* */ }
+                        finally { setGstActLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-green-700 w-24 shrink-0 pt-0.5">GST Act</span>
+                    <span className="text-sm text-gray-700">GST Act 1999</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setLegislationDropdownOpen(false);
+                      setActiveView('gst-regs');
+                      setActiveSchedule(null);
+                      setGstRegsFilter('');
+                      setExpandedGstRegsCh(null);
+                      if (gstRegsData.length === 0) {
+                        setGstRegsLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/gst-regs');
+                          const data: GstRegRow[] = await res.json();
+                          setGstRegsData(data);
+                          const groups: GstRegChapterGroup[] = [];
+                          const chMap = new Map<string, GstRegChapterGroup>();
+                          for (const d of data) {
+                            let g = chMap.get(d.chapter);
+                            if (!g) { g = { chapter: d.chapter, chapter_title: d.chapter_title, divisions: [] }; chMap.set(d.chapter, g); groups.push(g); }
+                            g.divisions.push(d);
+                          }
+                          setGstRegsChapters(groups);
+                        } catch { /* */ }
+                        finally { setGstRegsLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-green-700 w-24 shrink-0 pt-0.5">GST Regs</span>
+                    <span className="text-sm text-gray-700">GST Regulations 2019</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 mx-3" />
+
+                  <a href="https://www.legislation.gov.au" target="_blank" rel="noopener noreferrer" className="block px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2">
+                    View on legislation.gov.au <ExternalIcon />
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* Browse Schedules Dropdown */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => { setDropdownOpen(!dropdownOpen); setComplianceDropdownOpen(false); setLegislationDropdownOpen(false); }}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                Browse Schedules
+                <svg className={`w-4 h-4 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[80vh] overflow-y-auto">
                   {/* Main Schedules */}
                 <div className="px-3 pt-3 pb-1">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Main Schedules</p>
@@ -1413,6 +1587,119 @@ export default function TariffSearchPage() {
                                 {r.category && (
                                   <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{r.category}</span>
                                 )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : activeView === 'gst-act' ? (
+          // ── GST Act 1999 ───────────────────────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                Back to Search
+              </button>
+              <a href="https://www.legislation.gov.au/C2004A00446/latest/text" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                View on legislation.gov.au <ExternalIcon />
+              </a>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">A New Tax System (Goods and Services Tax) Act 1999</h2>
+              <p className="text-xs text-gray-500 mb-3">6 Chapters, {gstActData.length} divisions — covers GST on supplies, acquisitions, and importations</p>
+              <input type="text" value={gstActFilter} onChange={(e) => setGstActFilter(e.target.value)} placeholder="Search divisions..." className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" />
+            </div>
+            {gstActLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                <p className="text-gray-500 mt-4">Loading GST Act...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredGstActChapters.map((ch) => (
+                  <div key={ch.chapter} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button onClick={() => setExpandedGstActCh(expandedGstActCh === ch.chapter ? null : ch.chapter)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-green-50 transition-colors">
+                      <div>
+                        <span className="font-mono font-bold text-green-700 mr-3">{ch.chapter}</span>
+                        <span className="text-gray-800">{ch.chapter_title}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{ch.divisions.length} divs</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedGstActCh === ch.chapter ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </button>
+                    {expandedGstActCh === ch.chapter && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {ch.divisions.map((d) => (
+                          <div key={d.id} className="px-6 py-2 text-sm hover:bg-green-50 transition-colors">
+                            <div className="flex items-start gap-3">
+                              <span className="font-mono text-green-600 font-medium w-28 shrink-0">{d.division}</span>
+                              <div className="flex-1">
+                                <span className="text-gray-700">{d.division_title}</span>
+                                {d.part && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{d.part}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : activeView === 'gst-regs' ? (
+          // ── GST Regulations 2019 ───────────────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                Back to Search
+              </button>
+              <a href="https://www.legislation.gov.au/F2019L00417/latest/text" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                View on legislation.gov.au <ExternalIcon />
+              </a>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">A New Tax System (Goods and Services Tax) Regulations 2019</h2>
+              <p className="text-xs text-gray-500 mb-3">Supporting regulations for the GST Act — {gstRegsData.length} divisions</p>
+              <input type="text" value={gstRegsFilter} onChange={(e) => setGstRegsFilter(e.target.value)} placeholder="Search regulations..." className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" />
+            </div>
+            {gstRegsLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                <p className="text-gray-500 mt-4">Loading GST Regulations...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredGstRegsChapters.map((ch) => (
+                  <div key={ch.chapter} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button onClick={() => setExpandedGstRegsCh(expandedGstRegsCh === ch.chapter ? null : ch.chapter)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-green-50 transition-colors">
+                      <div>
+                        <span className="font-mono font-bold text-green-700 mr-3">{ch.chapter}</span>
+                        <span className="text-gray-800">{ch.chapter_title}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{ch.divisions.length} divs</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedGstRegsCh === ch.chapter ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </button>
+                    {expandedGstRegsCh === ch.chapter && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {ch.divisions.map((d) => (
+                          <div key={d.id} className="px-6 py-2 text-sm hover:bg-green-50 transition-colors">
+                            <div className="flex items-start gap-3">
+                              <span className="font-mono text-green-600 font-medium w-28 shrink-0">{d.division}</span>
+                              <div className="flex-1">
+                                <span className="text-gray-700">{d.division_title}</span>
+                                {d.part && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{d.part}</span>}
+                                {d.subdivision && <p className="text-xs text-gray-400 mt-0.5">{d.subdivision}</p>}
                               </div>
                             </div>
                           </div>
