@@ -198,6 +198,9 @@ interface TdRegPartGroup { part: string; part_title: string; regulations: TdRegR
 interface IntlObRow { id: number; part: string; part_title: string; division: string | null; division_title: string | null; regulation_number: string; regulation_title: string; content: string | null; }
 interface IntlObPartGroup { part: string; part_title: string; regulations: IntlObRow[]; }
 
+// ── Customs (Prohibited Exports) Regulations 1958 ─────────────────
+// Reuses IntlObRow/IntlObPartGroup interfaces (same structure)
+
 // ── Dumping Notices ────────────────────────────────────────────────
 
 interface DumpingRow {
@@ -326,7 +329,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -388,6 +391,13 @@ export default function TariffSearchPage() {
   const [intlObLoading, setIntlObLoading] = useState(false);
   const [expandedIntlObSection, setExpandedIntlObSection] = useState<number | null>(null);
 
+  // Prohibited Exports data
+  const [peData, setPeData] = useState<IntlObRow[]>([]);
+  const [peParts, setPeParts] = useState<IntlObPartGroup[]>([]);
+  const [expandedPePart, setExpandedPePart] = useState<string | null>(null);
+  const [peLoading, setPeLoading] = useState(false);
+  const [expandedPeSection, setExpandedPeSection] = useState<number | null>(null);
+
   // Trade Descriptions data
   const [tdActData, setTdActData] = useState<TdActRow[]>([]);
   const [tdActParts, setTdActParts] = useState<TdActPartGroup[]>([]);
@@ -444,6 +454,7 @@ export default function TariffSearchPage() {
   const [tdActFilter, setTdActFilter] = useState('');
   const [tdRegsFilter, setTdRegsFilter] = useState('');
   const [intlObFilter, setIntlObFilter] = useState('');
+  const [peFilter, setPeFilter] = useState('');
   const [rulesFilter, setRulesFilter] = useState('');
   const [sectionsFilter, setSectionsFilter] = useState('');
   const [ftaFilter, setFtaFilter] = useState('');
@@ -641,6 +652,10 @@ export default function TariffSearchPage() {
     ? intlObParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_title.toLowerCase().includes(intlObFilter.toLowerCase()) || r.regulation_number.toLowerCase().includes(intlObFilter.toLowerCase()) || (r.division_title || '').toLowerCase().includes(intlObFilter.toLowerCase()) || (r.content || '').toLowerCase().includes(intlObFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
     : intlObParts;
 
+  const filteredPeParts = peFilter
+    ? peParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_title.toLowerCase().includes(peFilter.toLowerCase()) || r.regulation_number.toLowerCase().includes(peFilter.toLowerCase()) || (r.division_title || '').toLowerCase().includes(peFilter.toLowerCase()) || (r.content || '').toLowerCase().includes(peFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
+    : peParts;
+
   const filteredTdActParts = tdActFilter
     ? tdActParts.map(p => ({ ...p, sections: p.sections.filter(s => s.section_title.toLowerCase().includes(tdActFilter.toLowerCase()) || s.section_number.toLowerCase().includes(tdActFilter.toLowerCase())) })).filter(p => p.sections.length > 0)
     : tdActParts;
@@ -777,7 +792,9 @@ export default function TariffSearchPage() {
                               ? 'Commerce (Trade Descriptions) Regulations 2016'
                               : activeView === 'intl-ob'
                                 ? 'Customs (International Obligations) Regulation 2015'
-                                : activeView === 'chemicals'
+                                : activeView === 'pe-regs'
+                                  ? 'Customs (Prohibited Exports) Regulations 1958'
+                                  : activeView === 'chemicals'
                     ? 'Chemical Index — CWC Scheduled Chemicals'
                     : activeView === 'ahecc'
                       ? 'AHECC — Export Commodity Classification'
@@ -1119,6 +1136,31 @@ export default function TariffSearchPage() {
                   >
                     <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Intl Ob</span>
                     <span className="text-sm text-gray-700">International Obligations Regulation 2015</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setLegislationDropdownOpen(false);
+                      setActiveView('pe-regs');
+                      setActiveSchedule(null);
+                      setPeFilter('');
+                      setExpandedPePart(null);
+                      if (peData.length === 0) {
+                        setPeLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/prohibited-exports');
+                          const data: IntlObRow[] = await res.json();
+                          setPeData(data);
+                          const groups: IntlObPartGroup[] = [];
+                          const m = new Map<string, IntlObPartGroup>();
+                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
+                          setPeParts(groups);
+                        } catch { /* */ } finally { setPeLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-red-700 w-24 shrink-0 pt-0.5">Exports</span>
+                    <span className="text-sm text-gray-700">Prohibited Exports Regulations 1958</span>
                   </button>
 
                   <div className="border-t border-gray-100 mx-3" />
@@ -1991,6 +2033,57 @@ export default function TariffSearchPage() {
               </div>
             );
           })()
+        ) : activeView === 'pe-regs' ? (
+          // ── Prohibited Exports Regulations ─────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                Back to Search
+              </button>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">Customs (Prohibited Exports) Regulations 1958</h2>
+              <p className="text-xs text-gray-500 mb-3">{peParts.length} parts, {peData.length} regulations — covers export prohibitions, sanctions, defence goods, drugs, LNG</p>
+              <input type="text" value={peFilter} onChange={(e) => setPeFilter(e.target.value)} placeholder="Search regulations..." className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" />
+            </div>
+            {peLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center"><div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" /></div>
+            ) : (
+              <div className="space-y-3">
+                {filteredPeParts.map((pg) => (
+                  <div key={pg.part} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button onClick={() => setExpandedPePart(expandedPePart === pg.part ? null : pg.part)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-red-50 transition-colors">
+                      <div><span className="font-mono font-bold text-red-700 mr-3">{pg.part}</span><span className="text-gray-800">{pg.part_title}</span></div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{pg.regulations.length}</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedPePart === pg.part ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </button>
+                    {expandedPePart === pg.part && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {pg.regulations.map((r) => (
+                          <div key={r.id} className="px-6 py-2 text-sm hover:bg-red-50 transition-colors">
+                            <button onClick={() => setExpandedPeSection(expandedPeSection === r.id ? null : r.id)} className="w-full text-left flex items-start gap-3">
+                              <span className="font-mono text-red-600 font-medium w-16 shrink-0">r.{r.regulation_number}</span>
+                              <div className="flex-1">
+                                <span className="text-gray-700 font-medium">{r.regulation_title}</span>
+                                {r.division && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{r.division}</span>}
+                                {r.content && <span className="text-xs text-red-400 ml-2">{expandedPeSection === r.id ? '\u25B2' : '\u25BC'}</span>}
+                              </div>
+                            </button>
+                            {expandedPeSection === r.id && r.content && (
+                              <div className="mt-2 ml-16 pl-4 border-l-2 border-red-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">{r.content}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         ) : activeView === 'intl-ob' ? (
           // ── International Obligations Regulation ───────────────
           <div>
