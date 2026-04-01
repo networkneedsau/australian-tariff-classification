@@ -135,6 +135,38 @@ interface ChemScheduleGroup {
   chemicals: ChemicalRow[];
 }
 
+// ── ABF Reference Files & CP Questions ─────────────────────────────
+
+interface RefFileRow {
+  id: number;
+  file_code: string;
+  file_name: string;
+  category: string;
+  description: string;
+}
+
+interface RefCategoryGroup {
+  category: string;
+  files: RefFileRow[];
+}
+
+interface CPQuestionRow {
+  id: number;
+  cp_number: string;
+  question_text: string;
+  category: string;
+  applies_to: string | null;
+  answer_y: string | null;
+  answer_n: string | null;
+  effective_date: string | null;
+  notes: string | null;
+}
+
+interface CPCategoryGroup {
+  category: string;
+  questions: CPQuestionRow[];
+}
+
 // ── AHECC Codes ────────────────────────────────────────────────────
 
 interface AHECCRow {
@@ -211,7 +243,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -238,6 +270,18 @@ export default function TariffSearchPage() {
   const [expandedRegPart, setExpandedRegPart] = useState<string | null>(null);
   const [regsLoading, setRegsLoading] = useState(false);
 
+  // ABF Reference Files data
+  const [refFilesData, setRefFilesData] = useState<RefFileRow[]>([]);
+  const [refCategories, setRefCategories] = useState<RefCategoryGroup[]>([]);
+  const [expandedRefCat, setExpandedRefCat] = useState<string | null>(null);
+  const [refLoading, setRefLoading] = useState(false);
+
+  // CP Questions data
+  const [cpData, setCpData] = useState<CPQuestionRow[]>([]);
+  const [cpCategories, setCpCategories] = useState<CPCategoryGroup[]>([]);
+  const [expandedCpCat, setExpandedCpCat] = useState<string | null>(null);
+  const [cpLoading, setCpLoading] = useState(false);
+
   // AHECC data
   const [aheccData, setAheccData] = useState<AHECCRow[]>([]);
   const [aheccSections, setAheccSections] = useState<AHECCSectionGroup[]>([]);
@@ -255,6 +299,8 @@ export default function TariffSearchPage() {
   const [regsFilter, setRegsFilter] = useState('');
   const [chemsFilter, setChemsFilter] = useState('');
   const [aheccFilter, setAheccFilter] = useState('');
+  const [refFilter, setRefFilter] = useState('');
+  const [cpFilter, setCpFilter] = useState('');
   const [rulesFilter, setRulesFilter] = useState('');
   const [sectionsFilter, setSectionsFilter] = useState('');
   const [ftaFilter, setFtaFilter] = useState('');
@@ -414,6 +460,29 @@ export default function TariffSearchPage() {
       )
     : actParts;
 
+  const filteredRefCategories = refFilter
+    ? refCategories.map(c => ({
+        ...c,
+        files: c.files.filter(f =>
+          f.file_code.toLowerCase().includes(refFilter.toLowerCase()) ||
+          f.file_name.toLowerCase().includes(refFilter.toLowerCase()) ||
+          f.description.toLowerCase().includes(refFilter.toLowerCase())
+        )
+      })).filter(c => c.files.length > 0)
+    : refCategories;
+
+  const filteredCpCategories = cpFilter
+    ? cpCategories.map(c => ({
+        ...c,
+        questions: c.questions.filter(q =>
+          q.question_text.toLowerCase().includes(cpFilter.toLowerCase()) ||
+          q.cp_number.toLowerCase().includes(cpFilter.toLowerCase()) ||
+          (q.applies_to || '').toLowerCase().includes(cpFilter.toLowerCase()) ||
+          (q.notes || '').toLowerCase().includes(cpFilter.toLowerCase())
+        )
+      })).filter(c => c.questions.length > 0)
+    : cpCategories;
+
   const filteredAheccSections = aheccFilter
     ? aheccSections.map(s => ({
         ...s,
@@ -496,7 +565,11 @@ export default function TariffSearchPage() {
                     ? 'Chemical Index — CWC Scheduled Chemicals'
                     : activeView === 'ahecc'
                       ? 'AHECC — Export Commodity Classification'
-                      : activeView === 'schedule' && activeSchedule
+                      : activeView === 'reffiles'
+                        ? 'ABF Software Reference Files'
+                        : activeView === 'cpquestions'
+                          ? 'Community Protection Questions'
+                          : activeView === 'schedule' && activeSchedule
                   ? `${activeSchedule.label} — ${activeSchedule.title}`
                   : 'Search the Combined Australian Customs Tariff Nomenclature'}
             </p>
@@ -629,6 +702,80 @@ export default function TariffSearchPage() {
                   >
                     <span className="font-mono text-xs font-bold text-teal-700 w-24 shrink-0 pt-0.5">AHECC</span>
                     <span className="text-sm text-gray-700">Export Commodity Classification</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 mx-3" />
+
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">ICS / Software Reference</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false);
+                      setActiveView('cpquestions');
+                      setActiveSchedule(null);
+                      setCpFilter('');
+                      setExpandedCpCat(null);
+                      if (cpData.length === 0) {
+                        setCpLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/cp-questions');
+                          const data: CPQuestionRow[] = await res.json();
+                          setCpData(data);
+                          const groups: CPCategoryGroup[] = [];
+                          const catMap = new Map<string, CPCategoryGroup>();
+                          for (const q of data) {
+                            let group = catMap.get(q.category);
+                            if (!group) {
+                              group = { category: q.category, questions: [] };
+                              catMap.set(q.category, group);
+                              groups.push(group);
+                            }
+                            group.questions.push(q);
+                          }
+                          setCpCategories(groups);
+                        } catch { /* */ }
+                        finally { setCpLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-amber-700 w-24 shrink-0 pt-0.5">CP Q&apos;s</span>
+                    <span className="text-sm text-gray-700">Community Protection Questions</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false);
+                      setActiveView('reffiles');
+                      setActiveSchedule(null);
+                      setRefFilter('');
+                      setExpandedRefCat(null);
+                      if (refFilesData.length === 0) {
+                        setRefLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/reference-files');
+                          const data: RefFileRow[] = await res.json();
+                          setRefFilesData(data);
+                          const groups: RefCategoryGroup[] = [];
+                          const catMap = new Map<string, RefCategoryGroup>();
+                          for (const f of data) {
+                            let group = catMap.get(f.category);
+                            if (!group) {
+                              group = { category: f.category, files: [] };
+                              catMap.set(f.category, group);
+                              groups.push(group);
+                            }
+                            group.files.push(f);
+                          }
+                          setRefCategories(groups);
+                        } catch { /* */ }
+                        finally { setRefLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-amber-700 w-24 shrink-0 pt-0.5">Ref Files</span>
+                    <span className="text-sm text-gray-700">ABF Software Reference Files</span>
                   </button>
                 </div>
               )}
@@ -1188,6 +1335,151 @@ export default function TariffSearchPage() {
                             </div>
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : activeView === 'cpquestions' ? (
+          // ── CP Questions ────────────────────────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Search
+              </button>
+              <a href="https://www.abf.gov.au/help-and-support/ics/integrated-cargo-system-(ics)/software-developers/reference-materials/reference-files" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                ABF Reference <ExternalIcon />
+              </a>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">Community Protection Questions</h2>
+              <p className="text-xs text-gray-500 mb-3">Questions required on import declarations to assess biosecurity, prohibited goods, and compliance risks</p>
+              <input type="text" value={cpFilter} onChange={(e) => setCpFilter(e.target.value)} placeholder="Search by keyword, category, regulation..." className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" />
+              <p className="text-xs text-gray-400 mt-2">{filteredCpCategories.reduce((s, c) => s + c.questions.length, 0)} of {cpData.length} questions</p>
+            </div>
+
+            {cpLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                <p className="text-gray-500 mt-4">Loading CP questions...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredCpCategories.map((cg) => (
+                  <div key={cg.category} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button onClick={() => setExpandedCpCat(expandedCpCat === cg.category ? null : cg.category)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-amber-50 transition-colors">
+                      <div>
+                        <span className="font-semibold text-amber-800">{cg.category}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{cg.questions.length} Q&apos;s</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedCpCat === cg.category ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+                    {expandedCpCat === cg.category && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {cg.questions.map((q) => (
+                          <div key={q.id} className="px-5 py-3 text-sm">
+                            <div className="flex items-start gap-3 mb-2">
+                              <span className="font-mono text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded shrink-0">CP {q.cp_number}</span>
+                              {q.effective_date && <span className="text-xs text-gray-400">Effective: {q.effective_date}</span>}
+                            </div>
+                            <p className="text-gray-700 mb-2">{q.question_text}</p>
+                            {q.applies_to && <p className="text-xs text-gray-500 mb-1"><span className="font-medium">Applies to:</span> {q.applies_to}</p>}
+                            <div className="grid grid-cols-2 gap-2 mt-2">
+                              {q.answer_y && (
+                                <div className="bg-red-50 rounded p-2">
+                                  <span className="text-xs font-bold text-red-700">Y:</span>
+                                  <span className="text-xs text-red-600 ml-1">{q.answer_y}</span>
+                                </div>
+                              )}
+                              {q.answer_n && (
+                                <div className="bg-green-50 rounded p-2">
+                                  <span className="text-xs font-bold text-green-700">N:</span>
+                                  <span className="text-xs text-green-600 ml-1">{q.answer_n}</span>
+                                </div>
+                              )}
+                            </div>
+                            {q.notes && <p className="text-xs text-gray-400 mt-2 italic">{q.notes}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : activeView === 'reffiles' ? (
+          // ── ABF Reference Files ─────────────────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Search
+              </button>
+              <a href="https://www.ccf.customs.gov.au/reference" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                CCF Portal <ExternalIcon />
+              </a>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">ABF Software Reference Files</h2>
+              <p className="text-xs text-gray-500 mb-3">ICS reference data files used for import/export declaration validation, tariff classification, and compliance</p>
+              <input type="text" value={refFilter} onChange={(e) => setRefFilter(e.target.value)} placeholder="Search by file code or description..." className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" />
+              <p className="text-xs text-gray-400 mt-2">{filteredRefCategories.reduce((s, c) => s + c.files.length, 0)} of {refFilesData.length} files</p>
+            </div>
+
+            {refLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                <p className="text-gray-500 mt-4">Loading reference files...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredRefCategories.map((cg) => (
+                  <div key={cg.category} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button onClick={() => setExpandedRefCat(expandedRefCat === cg.category ? null : cg.category)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-blue-50 transition-colors">
+                      <div>
+                        <span className="font-semibold text-blue-800">{cg.category}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{cg.files.length} files</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedRefCat === cg.category ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+                    {expandedRefCat === cg.category && (
+                      <div className="border-t border-gray-100">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 w-28">Code</th>
+                              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 w-48">Name</th>
+                              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500">Description</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {cg.files.map((f) => (
+                              <tr key={f.id} className="hover:bg-blue-50 transition-colors">
+                                <td className="px-4 py-2 font-mono text-blue-600 text-xs font-bold">{f.file_code}</td>
+                                <td className="px-4 py-2 text-gray-700">{f.file_name}</td>
+                                <td className="px-4 py-2 text-gray-500 text-xs">{f.description}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     )}
                   </div>
