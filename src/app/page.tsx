@@ -135,6 +135,26 @@ interface ChemScheduleGroup {
   chemicals: ChemicalRow[];
 }
 
+// ── Dumping Notices ────────────────────────────────────────────────
+
+interface DumpingRow {
+  id: number;
+  commodity: string;
+  countries: string;
+  measure_type: string;
+  duty_info: string | null;
+  tariff_chapters: string | null;
+  status: string;
+  expiry_info: string | null;
+  category: string;
+  notes: string | null;
+}
+
+interface DumpCategoryGroup {
+  category: string;
+  notices: DumpingRow[];
+}
+
 // ── ABF Reference Files & CP Questions ─────────────────────────────
 
 interface RefFileRow {
@@ -243,7 +263,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -269,6 +289,12 @@ export default function TariffSearchPage() {
   const [regParts, setRegParts] = useState<RegPartGroup[]>([]);
   const [expandedRegPart, setExpandedRegPart] = useState<string | null>(null);
   const [regsLoading, setRegsLoading] = useState(false);
+
+  // Dumping notices data
+  const [dumpData, setDumpData] = useState<DumpingRow[]>([]);
+  const [dumpCategories, setDumpCategories] = useState<DumpCategoryGroup[]>([]);
+  const [expandedDumpCat, setExpandedDumpCat] = useState<string | null>(null);
+  const [dumpLoading, setDumpLoading] = useState(false);
 
   // ABF Reference Files data
   const [refFilesData, setRefFilesData] = useState<RefFileRow[]>([]);
@@ -301,6 +327,7 @@ export default function TariffSearchPage() {
   const [aheccFilter, setAheccFilter] = useState('');
   const [refFilter, setRefFilter] = useState('');
   const [cpFilter, setCpFilter] = useState('');
+  const [dumpFilter, setDumpFilter] = useState('');
   const [rulesFilter, setRulesFilter] = useState('');
   const [sectionsFilter, setSectionsFilter] = useState('');
   const [ftaFilter, setFtaFilter] = useState('');
@@ -460,6 +487,19 @@ export default function TariffSearchPage() {
       )
     : actParts;
 
+  const filteredDumpCategories = dumpFilter
+    ? dumpCategories.map(c => ({
+        ...c,
+        notices: c.notices.filter(n =>
+          n.commodity.toLowerCase().includes(dumpFilter.toLowerCase()) ||
+          n.countries.toLowerCase().includes(dumpFilter.toLowerCase()) ||
+          n.measure_type.toLowerCase().includes(dumpFilter.toLowerCase()) ||
+          (n.notes || '').toLowerCase().includes(dumpFilter.toLowerCase()) ||
+          (n.tariff_chapters || '').toLowerCase().includes(dumpFilter.toLowerCase())
+        )
+      })).filter(c => c.notices.length > 0)
+    : dumpCategories;
+
   const filteredRefCategories = refFilter
     ? refCategories.map(c => ({
         ...c,
@@ -565,11 +605,13 @@ export default function TariffSearchPage() {
                     ? 'Chemical Index — CWC Scheduled Chemicals'
                     : activeView === 'ahecc'
                       ? 'AHECC — Export Commodity Classification'
-                      : activeView === 'reffiles'
-                        ? 'ABF Software Reference Files'
-                        : activeView === 'cpquestions'
-                          ? 'Community Protection Questions'
-                          : activeView === 'schedule' && activeSchedule
+                      : activeView === 'dumping'
+                        ? 'Anti-Dumping & Countervailing Duty Notices'
+                        : activeView === 'reffiles'
+                          ? 'ABF Software Reference Files'
+                          : activeView === 'cpquestions'
+                            ? 'Community Protection Questions'
+                            : activeView === 'schedule' && activeSchedule
                   ? `${activeSchedule.label} — ${activeSchedule.title}`
                   : 'Search the Combined Australian Customs Tariff Nomenclature'}
             </p>
@@ -591,6 +633,46 @@ export default function TariffSearchPage() {
 
               {complianceDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[80vh] overflow-y-auto">
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Anti-Dumping</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false);
+                      setActiveView('dumping');
+                      setActiveSchedule(null);
+                      setDumpFilter('');
+                      setExpandedDumpCat(null);
+                      if (dumpData.length === 0) {
+                        setDumpLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/dumping');
+                          const data: DumpingRow[] = await res.json();
+                          setDumpData(data);
+                          const groups: DumpCategoryGroup[] = [];
+                          const catMap = new Map<string, DumpCategoryGroup>();
+                          for (const n of data) {
+                            let group = catMap.get(n.category);
+                            if (!group) {
+                              group = { category: n.category, notices: [] };
+                              catMap.set(n.category, group);
+                              groups.push(group);
+                            }
+                            group.notices.push(n);
+                          }
+                          setDumpCategories(groups);
+                        } catch { /* */ }
+                        finally { setDumpLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-orange-700 w-24 shrink-0 pt-0.5">Dumping</span>
+                    <span className="text-sm text-gray-700">Anti-Dumping & Countervailing Notices</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 mx-3" />
+
                   <div className="px-3 pt-3 pb-1">
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Prohibited & Restricted Goods</p>
                   </div>
@@ -1333,6 +1415,70 @@ export default function TariffSearchPage() {
                                 )}
                               </div>
                             </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : activeView === 'dumping' ? (
+          // ── Anti-Dumping Notices ────────────────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Search
+              </button>
+              <a href="https://www.industry.gov.au/anti-dumping-commission/current-measures-dumping-commodity-register-dcr" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                DCR on industry.gov.au <ExternalIcon />
+              </a>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">Anti-Dumping & Countervailing Duty Notices</h2>
+              <p className="text-xs text-gray-500 mb-3">Current measures from the Dumping Commodity Register (DCR) — goods subject to additional dumping/countervailing duties on import</p>
+              <input type="text" value={dumpFilter} onChange={(e) => setDumpFilter(e.target.value)} placeholder="Search by commodity, country, tariff chapter..." className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" />
+              <p className="text-xs text-gray-400 mt-2">{filteredDumpCategories.reduce((s, c) => s + c.notices.length, 0)} of {dumpData.length} measures</p>
+            </div>
+
+            {dumpLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                <p className="text-gray-500 mt-4">Loading dumping notices...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredDumpCategories.map((cg) => (
+                  <div key={cg.category} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button onClick={() => setExpandedDumpCat(expandedDumpCat === cg.category ? null : cg.category)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors">
+                      <div>
+                        <span className="font-semibold text-orange-800">{cg.category}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{cg.notices.length} measures</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedDumpCat === cg.category ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+                    {expandedDumpCat === cg.category && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {cg.notices.map((n) => (
+                          <div key={n.id} className="px-5 py-3 text-sm">
+                            <div className="flex items-start justify-between mb-1">
+                              <span className="font-medium text-gray-800">{n.commodity}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded shrink-0 ml-2 ${n.measure_type.includes('Countervailing') ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{n.measure_type}</span>
+                            </div>
+                            <p className="text-xs text-gray-600 mb-1"><span className="font-medium">Countries:</span> {n.countries}</p>
+                            {n.tariff_chapters && <p className="text-xs text-gray-500"><span className="font-medium">Tariff:</span> {n.tariff_chapters}</p>}
+                            {n.duty_info && <p className="text-xs text-orange-700 font-medium mt-1">{n.duty_info}</p>}
+                            {n.expiry_info && <p className="text-xs text-blue-600 mt-1">{n.expiry_info}</p>}
+                            {n.notes && <p className="text-xs text-gray-400 mt-1 italic">{n.notes}</p>}
                           </div>
                         ))}
                       </div>
