@@ -135,6 +135,22 @@ interface ChemScheduleGroup {
   chemicals: ChemicalRow[];
 }
 
+// ── AHECC Codes ────────────────────────────────────────────────────
+
+interface AHECCRow {
+  id: number;
+  section_number: string;
+  section_title: string;
+  chapter_number: string;
+  chapter_title: string;
+}
+
+interface AHECCSectionGroup {
+  section_number: string;
+  section_title: string;
+  chapters: AHECCRow[];
+}
+
 // ── Schedule 2: Interpretative Rules ───────────────────────────────
 
 interface RuleData {
@@ -195,7 +211,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -220,6 +236,12 @@ export default function TariffSearchPage() {
   const [expandedRegPart, setExpandedRegPart] = useState<string | null>(null);
   const [regsLoading, setRegsLoading] = useState(false);
 
+  // AHECC data
+  const [aheccData, setAheccData] = useState<AHECCRow[]>([]);
+  const [aheccSections, setAheccSections] = useState<AHECCSectionGroup[]>([]);
+  const [expandedAheccSection, setExpandedAheccSection] = useState<string | null>(null);
+  const [aheccLoading, setAheccLoading] = useState(false);
+
   // Chemical index data
   const [chemsData, setChemsData] = useState<ChemicalRow[]>([]);
   const [chemGroups, setChemGroups] = useState<ChemScheduleGroup[]>([]);
@@ -230,6 +252,7 @@ export default function TariffSearchPage() {
   const [actFilter, setActFilter] = useState('');
   const [regsFilter, setRegsFilter] = useState('');
   const [chemsFilter, setChemsFilter] = useState('');
+  const [aheccFilter, setAheccFilter] = useState('');
   const [rulesFilter, setRulesFilter] = useState('');
   const [sectionsFilter, setSectionsFilter] = useState('');
   const [ftaFilter, setFtaFilter] = useState('');
@@ -253,9 +276,11 @@ export default function TariffSearchPage() {
   const [searchRegsTotal, setSearchRegsTotal] = useState(0);
   const [searchChemsResults, setSearchChemsResults] = useState<ChemicalRow[]>([]);
   const [searchChemsTotal, setSearchChemsTotal] = useState(0);
+  const [searchAheccResults, setSearchAheccResults] = useState<AHECCRow[]>([]);
+  const [searchAheccTotal, setSearchAheccTotal] = useState(0);
 
   const search = useCallback(async (q: string) => {
-    if (q.length < 2) { setResults([]); setTotal(0); setSearchActResults([]); setSearchActTotal(0); setSearchRegsResults([]); setSearchRegsTotal(0); setSearchChemsResults([]); setSearchChemsTotal(0); return; }
+    if (q.length < 2) { setResults([]); setTotal(0); setSearchActResults([]); setSearchActTotal(0); setSearchRegsResults([]); setSearchRegsTotal(0); setSearchChemsResults([]); setSearchChemsTotal(0); setSearchAheccResults([]); setSearchAheccTotal(0); return; }
     setLoading(true);
     try {
       const res = await fetch(`/api/tariff/search?q=${encodeURIComponent(q)}&limit=30`);
@@ -268,6 +293,8 @@ export default function TariffSearchPage() {
       setSearchRegsTotal(data.regsTotal || 0);
       setSearchChemsResults(data.chemsResults || []);
       setSearchChemsTotal(data.chemsTotal || 0);
+      setSearchAheccResults(data.aheccResults || []);
+      setSearchAheccTotal(data.aheccTotal || 0);
     } catch { setResults([]); }
     finally { setLoading(false); }
   }, []);
@@ -382,6 +409,18 @@ export default function TariffSearchPage() {
       )
     : actParts;
 
+  const filteredAheccSections = aheccFilter
+    ? aheccSections.map(s => ({
+        ...s,
+        chapters: s.chapters.filter(c =>
+          c.chapter_number.includes(aheccFilter) ||
+          c.chapter_title.toLowerCase().includes(aheccFilter.toLowerCase()) ||
+          s.section_title.toLowerCase().includes(aheccFilter.toLowerCase()) ||
+          s.section_number.toLowerCase().includes(aheccFilter.toLowerCase())
+        )
+      })).filter(s => s.chapters.length > 0)
+    : aheccSections;
+
   const filteredChemGroups = chemsFilter
     ? chemGroups.map(g => ({
         ...g,
@@ -450,7 +489,9 @@ export default function TariffSearchPage() {
                   ? 'Customs (Prohibited Imports) Regulations 1956'
                   : activeView === 'chemicals'
                     ? 'Chemical Index — CWC Scheduled Chemicals'
-                    : activeView === 'schedule' && activeSchedule
+                    : activeView === 'ahecc'
+                      ? 'AHECC — Export Commodity Classification'
+                      : activeView === 'schedule' && activeSchedule
                   ? `${activeSchedule.label} — ${activeSchedule.title}`
                   : 'Search the Combined Australian Customs Tariff Nomenclature'}
             </p>
@@ -578,6 +619,40 @@ export default function TariffSearchPage() {
                   <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Chem</span>
                   <span className="text-sm text-gray-700">Chemical Index (CWC Schedules)</span>
                 </button>
+                <button
+                  onClick={async () => {
+                    setDropdownOpen(false);
+                    setActiveView('ahecc');
+                    setActiveSchedule(null);
+                    setAheccFilter('');
+                    setExpandedAheccSection(null);
+                    if (aheccData.length === 0) {
+                      setAheccLoading(true);
+                      try {
+                        const res = await fetch('/api/tariff/ahecc');
+                        const data: AHECCRow[] = await res.json();
+                        setAheccData(data);
+                        const groups: AHECCSectionGroup[] = [];
+                        const secMap = new Map<string, AHECCSectionGroup>();
+                        for (const r of data) {
+                          let group = secMap.get(r.section_number);
+                          if (!group) {
+                            group = { section_number: r.section_number, section_title: r.section_title, chapters: [] };
+                            secMap.set(r.section_number, group);
+                            groups.push(group);
+                          }
+                          group.chapters.push(r);
+                        }
+                        setAheccSections(groups);
+                      } catch { /* */ }
+                      finally { setAheccLoading(false); }
+                    }
+                  }}
+                  className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                >
+                  <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">AHECC</span>
+                  <span className="text-sm text-gray-700">Export Commodity Classification</span>
+                </button>
 
                 <div className="border-t border-gray-100 mx-3" />
 
@@ -647,7 +722,7 @@ export default function TariffSearchPage() {
               {/* Results Panel */}
               <div>
                 <h2 className="text-lg font-semibold text-gray-800 mb-3">Search Results</h2>
-                {results.length === 0 && searchActResults.length === 0 && searchRegsResults.length === 0 && searchChemsResults.length === 0 && query.length >= 2 && !loading && (
+                {results.length === 0 && searchActResults.length === 0 && searchRegsResults.length === 0 && searchChemsResults.length === 0 && searchAheccResults.length === 0 && query.length >= 2 && !loading && (
                   <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
                     No results found for &ldquo;{query}&rdquo;
                   </div>
@@ -777,6 +852,34 @@ export default function TariffSearchPage() {
                           </button>
                         );
                       })}
+                    </div>
+                  )}
+
+                  {/* AHECC results */}
+                  {searchAheccResults.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">
+                        AHECC Export Classification ({searchAheccTotal})
+                      </p>
+                      {searchAheccResults.map((a: AHECCRow) => (
+                        <button
+                          key={a.id}
+                          onClick={() => {
+                            setActiveView('ahecc');
+                            setActiveSchedule(null);
+                          }}
+                          className="w-full text-left bg-white rounded-lg shadow p-3 mb-2 hover:bg-teal-50 border-2 border-transparent hover:border-teal-300 transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className="font-mono text-xs font-bold text-teal-700 w-16 shrink-0 pt-0.5">Ch.{a.chapter_number}</span>
+                            <div className="flex-1">
+                              <p className="text-sm text-gray-700">{a.chapter_title}</p>
+                              <p className="text-xs text-gray-400">Section {a.section_number} — {a.section_title}</p>
+                            </div>
+                            <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded shrink-0">AHECC</span>
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1048,6 +1151,84 @@ export default function TariffSearchPage() {
                                   <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{r.category}</span>
                                 )}
                               </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : activeView === 'ahecc' ? (
+          // ── AHECC Export Classification ─────────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Search
+              </button>
+              <a
+                href="https://www.abs.gov.au/statistics/classifications/australian-harmonized-export-commodity-classification-ahecc/latest-release"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                View on ABS <ExternalIcon />
+              </a>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">Australian Harmonized Export Commodity Classification (AHECC)</h2>
+              <p className="text-xs text-gray-500 mb-3">
+                8-digit export classification codes — first 6 digits align with HS codes, last 2 digits are Australian statistical extensions
+              </p>
+              <input
+                type="text"
+                value={aheccFilter}
+                onChange={(e) => setAheccFilter(e.target.value)}
+                placeholder="Search by chapter number or description..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              />
+              <p className="text-xs text-gray-400 mt-2">
+                {filteredAheccSections.reduce((sum, s) => sum + s.chapters.length, 0)} of {aheccData.length} chapters across {filteredAheccSections.length} sections
+              </p>
+            </div>
+
+            {aheccLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                <p className="text-gray-500 mt-4">Loading AHECC codes...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredAheccSections.map((sg) => (
+                  <div key={sg.section_number} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button
+                      onClick={() => setExpandedAheccSection(expandedAheccSection === sg.section_number ? null : sg.section_number)}
+                      className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-blue-50 transition-colors"
+                    >
+                      <div>
+                        <span className="font-mono font-bold text-teal-700 mr-3">Section {sg.section_number}</span>
+                        <span className="text-gray-800">{sg.section_title}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{sg.chapters.length} ch.</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedAheccSection === sg.section_number ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+                    {expandedAheccSection === sg.section_number && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {sg.chapters.map((ch) => (
+                          <div key={ch.id} className="px-6 py-2.5 text-sm hover:bg-blue-50 transition-colors">
+                            <div className="flex items-start gap-3">
+                              <span className="font-mono text-teal-600 font-medium w-10 shrink-0">Ch.{ch.chapter_number}</span>
+                              <span className="text-gray-700">{ch.chapter_title}</span>
                             </div>
                           </div>
                         ))}

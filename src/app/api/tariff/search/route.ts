@@ -132,6 +132,29 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // ── AHECC results ──────────────────────────────────────────────
+  let aheccResults: any[] = [];
+  let aheccTotal = 0;
+
+  if ((scope === 'all' || scope === 'ahecc') && !isCodeSearch) {
+    const like = `%${q}%`;
+    try {
+      aheccTotal = (db.prepare(`
+        SELECT COUNT(*) as count FROM ahecc_chapters
+        WHERE chapter_title LIKE ? OR chapter_number LIKE ? OR section_title LIKE ?
+      `).get(like, like, like) as any).count;
+
+      aheccResults = db.prepare(`
+        SELECT * FROM ahecc_chapters
+        WHERE chapter_title LIKE ? OR chapter_number LIKE ? OR section_title LIKE ?
+        ORDER BY id
+        LIMIT ?
+      `).all(like, like, like, 10) as any[];
+    } catch {
+      // table may not exist
+    }
+  }
+
   return NextResponse.json({
     query: q,
     total: tariffTotal,
@@ -148,5 +171,7 @@ export async function GET(request: NextRequest) {
     regsTotal,
     chemsResults,
     chemsTotal,
+    aheccResults,
+    aheccTotal,
   });
 }
