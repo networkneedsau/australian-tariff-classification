@@ -79,6 +79,39 @@ interface FtaExclusionRow {
   duty_rate: string | null;
 }
 
+// ── Customs Act 1901 Parts ─────────────────────────────────────────
+
+const LEGISLATION_BASE = 'https://www.legislation.gov.au/C1901A00006/latest/text';
+
+interface ActPartData {
+  part: string;
+  title: string;
+}
+
+const CUSTOMS_ACT_PARTS: ActPartData[] = [
+  { part: 'Part I', title: 'Introductory' },
+  { part: 'Part II', title: 'Administration' },
+  { part: 'Part III', title: 'Customs control examination and securities generally' },
+  { part: 'Part IV', title: 'The importation of goods' },
+  { part: 'Part IVA', title: 'Depots' },
+  { part: 'Part V', title: 'Warehouses' },
+  { part: 'Part VAAA', title: 'Cargo terminals' },
+  { part: 'Part VA', title: 'Special provisions relating to beverages' },
+  { part: 'Part VAA', title: 'Special provisions relating to excise-equivalent goods' },
+  { part: 'Part VB', title: 'Information about persons departing Australia' },
+  { part: 'Part VI', title: 'The exportation of goods' },
+  { part: 'Part VIA', title: 'Electronic communications' },
+  { part: 'Part VII', title: "Ships' stores and aircraft's stores" },
+  { part: 'Part VIII', title: 'The duties' },
+  { part: 'Part IX', title: 'Drawbacks' },
+  { part: 'Part X', title: 'The coasting trade' },
+  { part: 'Part XA', title: 'Australian Trusted Trader Programme' },
+  { part: 'Part XI', title: 'Agents and customs brokers' },
+  { part: 'Part XII', title: 'Officers' },
+  { part: 'Part XIIA', title: 'Special provisions relating to prohibited items' },
+  { part: 'Part XIII', title: 'Penal provisions' },
+];
+
 // ── Schedule Definitions ───────────────────────────────────────────
 
 const ABF_BASE = 'https://www.abf.gov.au/importing-exporting-and-manufacturing/tariff-classification/current-tariff';
@@ -122,7 +155,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -261,15 +294,17 @@ export default function TariffSearchPage() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
             <h1
-              className={`text-2xl font-bold ${activeView === 'schedule' ? 'cursor-pointer hover:text-blue-200' : ''}`}
-              onClick={activeView === 'schedule' ? goHome : undefined}
+              className={`text-2xl font-bold ${activeView !== 'search' ? 'cursor-pointer hover:text-blue-200' : ''}`}
+              onClick={activeView !== 'search' ? goHome : undefined}
             >
               Australian Tariff Classification
             </h1>
             <p className="text-sm text-blue-200">
-              {activeView === 'schedule' && activeSchedule
-                ? `${activeSchedule.label} — ${activeSchedule.title}`
-                : 'Search the Combined Australian Customs Tariff Nomenclature'}
+              {activeView === 'act'
+                ? 'Customs Act 1901 — Table of Contents'
+                : activeView === 'schedule' && activeSchedule
+                  ? `${activeSchedule.label} — ${activeSchedule.title}`
+                  : 'Search the Combined Australian Customs Tariff Nomenclature'}
             </p>
           </div>
 
@@ -291,16 +326,13 @@ export default function TariffSearchPage() {
                 <div className="px-3 pt-3 pb-1">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Legislation</p>
                 </div>
-                <a
-                  href="https://www.legislation.gov.au/C1901A00006/latest/text"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => { setDropdownOpen(false); setActiveView('act'); setActiveSchedule(null); }}
                   className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
                 >
                   <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Act</span>
                   <span className="text-sm text-gray-700">Customs Act 1901</span>
-                  <ExternalIcon className="shrink-0 mt-0.5 ml-auto" />
-                </a>
+                </button>
 
                 <div className="border-t border-gray-100 mx-3" />
 
@@ -523,6 +555,49 @@ export default function TariffSearchPage() {
               </div>
             </div>
           </>
+        ) : activeView === 'act' ? (
+          // ── Customs Act 1901 TOC ─────────────────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Search
+              </button>
+              <a
+                href={LEGISLATION_BASE}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                View full Act on legislation.gov.au <ExternalIcon />
+              </a>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">Customs Act 1901</h2>
+              <p className="text-sm text-gray-500 mt-1">Act No. 6 of 1901 — Federal Register of Legislation</p>
+            </div>
+
+            <div className="space-y-2">
+              {CUSTOMS_ACT_PARTS.map((p) => (
+                <a
+                  key={p.part}
+                  href={LEGISLATION_BASE}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block bg-white rounded-lg shadow px-4 py-3 hover:bg-blue-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono font-bold text-blue-700 w-28 shrink-0">{p.part}</span>
+                    <span className="text-gray-800">{p.title}</span>
+                    <ExternalIcon className="shrink-0 ml-auto" />
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
         ) : activeSchedule ? (
           // ── Schedule Browse View ─────────────────────────────────
           <div>
