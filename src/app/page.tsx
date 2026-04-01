@@ -53,7 +53,7 @@ interface ScheduleInfo {
   id: string;
   label: string;
   title: string;
-  dataSource: 'countries' | 'sections' | 'fta' | 'external';
+  dataSource: 'countries' | 'sections' | 'fta' | 'external' | 'rules';
   abfUrl: string;
   ftaScheduleKey?: string;
 }
@@ -112,13 +112,30 @@ const CUSTOMS_ACT_PARTS: ActPartData[] = [
   { part: 'Part XIII', title: 'Penal provisions' },
 ];
 
+// ── Schedule 2: Interpretative Rules ───────────────────────────────
+
+interface RuleData {
+  rule: string;
+  title: string;
+  description: string;
+}
+
+const SCHEDULE_2_RULES: RuleData[] = [
+  { rule: 'Rule 1', title: 'Classification by heading', description: 'Classification is determined by the terms of the headings and any relative Section or Chapter Notes. Classification by other rules applies only when headings or Notes do not otherwise require.' },
+  { rule: 'Rule 2', title: 'Incomplete articles and mixtures', description: '(a) References to an article include that article incomplete or unfinished, provided it has the essential character of the complete article, including articles presented unassembled or disassembled. (b) References to a material or substance include mixtures or combinations of that material with other materials or substances. Goods of two or more materials are classified per Rule 3.' },
+  { rule: 'Rule 3', title: 'Multiple heading classification', description: 'When goods are classifiable under two or more headings: (a) the most specific description is preferred; (b) mixtures, composite goods, and goods in sets are classified by the material or component giving essential character; (c) when (a) and (b) do not apply, classify under the last in numerical order.' },
+  { rule: 'Rule 4', title: 'Most akin goods', description: 'Goods which cannot be classified under Rules 1 to 3 shall be classified under the heading appropriate to the goods to which they are most akin.' },
+  { rule: 'Rule 5', title: 'Containers and packing', description: '(a) Camera cases, musical instrument cases, and similar containers specially shaped for specific articles are classified with those articles when presented with them and of a kind normally sold therewith. (b) Packing materials and containers presented with goods are classified with those goods if they are of a kind normally used for packing, unless clearly suitable for repetitive use.' },
+  { rule: 'Rule 6', title: 'Subheading classification', description: 'Classification at the subheading level is determined by the terms of those subheadings and any related Subheading Notes, applying Rules 1 to 5 mutatis mutandis. Only subheadings at the same level are comparable.' },
+];
+
 // ── Schedule Definitions ───────────────────────────────────────────
 
 const ABF_BASE = 'https://www.abf.gov.au/importing-exporting-and-manufacturing/tariff-classification/current-tariff';
 
 const SCHEDULES: ScheduleInfo[] = [
   { id: '1', label: 'Schedule 1', title: 'Countries and places — preferential duty rates', dataSource: 'countries', abfUrl: `${ABF_BASE}/schedule-1` },
-  { id: '2', label: 'Schedule 2', title: 'Interpretative Rules', dataSource: 'external', abfUrl: `${ABF_BASE}/schedule-2` },
+  { id: '2', label: 'Schedule 2', title: 'Interpretative Rules', dataSource: 'rules', abfUrl: `${ABF_BASE}/schedule-2` },
   { id: '3', label: 'Schedule 3', title: 'Classification of goods and rates of duty', dataSource: 'sections', abfUrl: `${ABF_BASE}/schedule-3` },
   { id: '4', label: 'Schedule 4', title: 'Concessional duty rate goods', dataSource: 'fta', abfUrl: `${ABF_BASE}/schedule-4`, ftaScheduleKey: 'Schedule 4' },
   { id: '4a', label: 'Schedule 4A', title: 'Singapore — FTA exclusions', dataSource: 'fta', abfUrl: `${ABF_BASE}/schedule-4a`, ftaScheduleKey: 'Schedule 4A' },
@@ -167,6 +184,12 @@ export default function TariffSearchPage() {
   const [countryFilter, setCountryFilter] = useState('');
   const [ftaExclusions, setFtaExclusions] = useState<FtaExclusionRow[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
+
+  // Scoped filter state
+  const [actFilter, setActFilter] = useState('');
+  const [rulesFilter, setRulesFilter] = useState('');
+  const [sectionsFilter, setSectionsFilter] = useState('');
+  const [ftaFilter, setFtaFilter] = useState('');
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -239,6 +262,9 @@ export default function TariffSearchPage() {
     setActiveSchedule(schedule);
     setActiveView('schedule');
     setScheduleLoading(true);
+    setRulesFilter('');
+    setSectionsFilter('');
+    setFtaFilter('');
 
     try {
       if (schedule.dataSource === 'countries') {
@@ -286,6 +312,39 @@ export default function TariffSearchPage() {
       )
     : countries;
 
+  // ── Filtered data ───────────────────────────────────────────────
+
+  const filteredActParts = actFilter
+    ? CUSTOMS_ACT_PARTS.filter(p =>
+        p.part.toLowerCase().includes(actFilter.toLowerCase()) ||
+        p.title.toLowerCase().includes(actFilter.toLowerCase())
+      )
+    : CUSTOMS_ACT_PARTS;
+
+  const filteredRules = rulesFilter
+    ? SCHEDULE_2_RULES.filter(r =>
+        r.rule.toLowerCase().includes(rulesFilter.toLowerCase()) ||
+        r.title.toLowerCase().includes(rulesFilter.toLowerCase()) ||
+        r.description.toLowerCase().includes(rulesFilter.toLowerCase())
+      )
+    : SCHEDULE_2_RULES;
+
+  const filteredSections = sectionsFilter
+    ? sections.filter(s =>
+        s.title.toLowerCase().includes(sectionsFilter.toLowerCase()) ||
+        `section ${toRoman(s.number)}`.toLowerCase().includes(sectionsFilter.toLowerCase()) ||
+        s.chapters.some(c => c.title.toLowerCase().includes(sectionsFilter.toLowerCase()))
+      )
+    : sections;
+
+  const filteredFta = ftaFilter
+    ? ftaExclusions.filter(ex =>
+        ex.hs_code.toLowerCase().includes(ftaFilter.toLowerCase()) ||
+        ex.description.toLowerCase().includes(ftaFilter.toLowerCase()) ||
+        (ex.duty_rate || '').toLowerCase().includes(ftaFilter.toLowerCase())
+      )
+    : ftaExclusions;
+
   // ── Render ───────────────────────────────────────────────────────
 
   return (
@@ -327,7 +386,7 @@ export default function TariffSearchPage() {
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Legislation</p>
                 </div>
                 <button
-                  onClick={() => { setDropdownOpen(false); setActiveView('act'); setActiveSchedule(null); }}
+                  onClick={() => { setDropdownOpen(false); setActiveView('act'); setActiveSchedule(null); setActFilter(''); }}
                   className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
                 >
                   <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Act</span>
@@ -575,13 +634,20 @@ export default function TariffSearchPage() {
               </a>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6 mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">Customs Act 1901</h2>
-              <p className="text-sm text-gray-500 mt-1">Act No. 6 of 1901 — Federal Register of Legislation</p>
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">Customs Act 1901</h2>
+              <input
+                type="text"
+                value={actFilter}
+                onChange={(e) => setActFilter(e.target.value)}
+                placeholder="Search parts..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              />
+              <p className="text-xs text-gray-400 mt-2">{filteredActParts.length} of {CUSTOMS_ACT_PARTS.length} parts</p>
             </div>
 
             <div className="space-y-2">
-              {CUSTOMS_ACT_PARTS.map((p) => (
+              {filteredActParts.map((p) => (
                 <a
                   key={p.part}
                   href={LEGISLATION_BASE}
@@ -675,10 +741,48 @@ export default function TariffSearchPage() {
                   </table>
                 </div>
               </div>
+            ) : activeSchedule.dataSource === 'rules' ? (
+              // ── Schedule 2: Interpretative Rules ─────────────────
+              <div>
+                <div className="bg-white rounded-lg shadow p-4 mb-4">
+                  <input
+                    type="text"
+                    value={rulesFilter}
+                    onChange={(e) => setRulesFilter(e.target.value)}
+                    placeholder="Search rules..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                  <p className="text-xs text-gray-400 mt-2">{filteredRules.length} of {SCHEDULE_2_RULES.length} rules</p>
+                </div>
+                <div className="space-y-3">
+                  {filteredRules.map((r) => (
+                    <div key={r.rule} className="bg-white rounded-lg shadow p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="font-mono font-bold text-blue-700 w-20 shrink-0">{r.rule}</span>
+                        <div>
+                          <h3 className="font-semibold text-gray-800">{r.title}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{r.description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : activeSchedule.dataSource === 'sections' ? (
               // ── Schedule 3: Sections & Chapters ──────────────────
+              <div>
+                <div className="bg-white rounded-lg shadow p-4 mb-4">
+                  <input
+                    type="text"
+                    value={sectionsFilter}
+                    onChange={(e) => setSectionsFilter(e.target.value)}
+                    placeholder="Search sections and chapters..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                  <p className="text-xs text-gray-400 mt-2">{filteredSections.length} of {sections.length} sections</p>
+                </div>
               <div className="space-y-3">
-                {sections.map((section) => (
+                {filteredSections.map((section) => (
                   <div key={section.number} className="bg-white rounded-lg shadow overflow-hidden">
                     <button
                       onClick={() => setExpandedSection(expandedSection === section.number ? null : section.number)}
@@ -714,6 +818,7 @@ export default function TariffSearchPage() {
                   </div>
                 ))}
               </div>
+              </div>
             ) : activeSchedule.dataSource === 'fta' ? (
               // ── FTA Exclusion Schedules ──────────────────────────
               <div>
@@ -730,10 +835,18 @@ export default function TariffSearchPage() {
                     </a>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                      <p className="text-sm text-gray-500">{ftaExclusions.length} exclusions</p>
+                  <div>
+                    <div className="bg-white rounded-lg shadow p-4 mb-4">
+                      <input
+                        type="text"
+                        value={ftaFilter}
+                        onChange={(e) => setFtaFilter(e.target.value)}
+                        placeholder="Search by HS code or description..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      />
+                      <p className="text-xs text-gray-400 mt-2">{filteredFta.length} of {ftaExclusions.length} exclusions</p>
                     </div>
+                  <div className="bg-white rounded-lg shadow overflow-hidden">
                     <div className="max-h-[70vh] overflow-y-auto">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
@@ -744,7 +857,7 @@ export default function TariffSearchPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {ftaExclusions.map((ex, i) => (
+                          {filteredFta.map((ex, i) => (
                             <tr key={i} className="hover:bg-blue-50">
                               <td className="px-4 py-2 font-mono text-blue-700 whitespace-nowrap">{ex.hs_code}</td>
                               <td className="px-4 py-2 text-gray-700">{ex.description}</td>
@@ -754,6 +867,7 @@ export default function TariffSearchPage() {
                         </tbody>
                       </table>
                     </div>
+                  </div>
                   </div>
                 )}
               </div>
