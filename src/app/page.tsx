@@ -79,38 +79,27 @@ interface FtaExclusionRow {
   duty_rate: string | null;
 }
 
-// ── Customs Act 1901 Parts ─────────────────────────────────────────
+// ── Customs Act 1901 ───────────────────────────────────────────────
 
 const LEGISLATION_BASE = 'https://www.legislation.gov.au/C1901A00006/latest/text';
 
-interface ActPartData {
+interface ActSectionRow {
+  id: number;
   part: string;
-  title: string;
+  part_title: string;
+  division: string | null;
+  division_title: string | null;
+  subdivision: string | null;
+  subdivision_title: string | null;
+  section_number: string;
+  section_title: string;
 }
 
-const CUSTOMS_ACT_PARTS: ActPartData[] = [
-  { part: 'Part I', title: 'Introductory' },
-  { part: 'Part II', title: 'Administration' },
-  { part: 'Part III', title: 'Customs control examination and securities generally' },
-  { part: 'Part IV', title: 'The importation of goods' },
-  { part: 'Part IVA', title: 'Depots' },
-  { part: 'Part V', title: 'Warehouses' },
-  { part: 'Part VAAA', title: 'Cargo terminals' },
-  { part: 'Part VA', title: 'Special provisions relating to beverages' },
-  { part: 'Part VAA', title: 'Special provisions relating to excise-equivalent goods' },
-  { part: 'Part VB', title: 'Information about persons departing Australia' },
-  { part: 'Part VI', title: 'The exportation of goods' },
-  { part: 'Part VIA', title: 'Electronic communications' },
-  { part: 'Part VII', title: "Ships' stores and aircraft's stores" },
-  { part: 'Part VIII', title: 'The duties' },
-  { part: 'Part IX', title: 'Drawbacks' },
-  { part: 'Part X', title: 'The coasting trade' },
-  { part: 'Part XA', title: 'Australian Trusted Trader Programme' },
-  { part: 'Part XI', title: 'Agents and customs brokers' },
-  { part: 'Part XII', title: 'Officers' },
-  { part: 'Part XIIA', title: 'Special provisions relating to prohibited items' },
-  { part: 'Part XIII', title: 'Penal provisions' },
-];
+interface ActPartGroup {
+  part: string;
+  part_title: string;
+  sections: ActSectionRow[];
+}
 
 // ── Schedule 2: Interpretative Rules ───────────────────────────────
 
@@ -184,6 +173,12 @@ export default function TariffSearchPage() {
   const [countryFilter, setCountryFilter] = useState('');
   const [ftaExclusions, setFtaExclusions] = useState<FtaExclusionRow[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
+
+  // Customs Act data
+  const [actSections, setActSections] = useState<ActSectionRow[]>([]);
+  const [actParts, setActParts] = useState<ActPartGroup[]>([]);
+  const [expandedPart, setExpandedPart] = useState<string | null>(null);
+  const [actLoading, setActLoading] = useState(false);
 
   // Scoped filter state
   const [actFilter, setActFilter] = useState('');
@@ -315,11 +310,16 @@ export default function TariffSearchPage() {
   // ── Filtered data ───────────────────────────────────────────────
 
   const filteredActParts = actFilter
-    ? CUSTOMS_ACT_PARTS.filter(p =>
+    ? actParts.filter(p =>
         p.part.toLowerCase().includes(actFilter.toLowerCase()) ||
-        p.title.toLowerCase().includes(actFilter.toLowerCase())
+        p.part_title.toLowerCase().includes(actFilter.toLowerCase()) ||
+        p.sections.some(s =>
+          s.section_number.toLowerCase().includes(actFilter.toLowerCase()) ||
+          s.section_title.toLowerCase().includes(actFilter.toLowerCase()) ||
+          (s.division_title || '').toLowerCase().includes(actFilter.toLowerCase())
+        )
       )
-    : CUSTOMS_ACT_PARTS;
+    : actParts;
 
   const filteredRules = rulesFilter
     ? SCHEDULE_2_RULES.filter(r =>
@@ -386,7 +386,35 @@ export default function TariffSearchPage() {
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Legislation</p>
                 </div>
                 <button
-                  onClick={() => { setDropdownOpen(false); setActiveView('act'); setActiveSchedule(null); setActFilter(''); }}
+                  onClick={async () => {
+                    setDropdownOpen(false);
+                    setActiveView('act');
+                    setActiveSchedule(null);
+                    setActFilter('');
+                    setExpandedPart(null);
+                    if (actSections.length === 0) {
+                      setActLoading(true);
+                      try {
+                        const res = await fetch('/api/tariff/act');
+                        const data: ActSectionRow[] = await res.json();
+                        setActSections(data);
+                        // Group by part
+                        const groups: ActPartGroup[] = [];
+                        const partMap = new Map<string, ActPartGroup>();
+                        for (const s of data) {
+                          let group = partMap.get(s.part);
+                          if (!group) {
+                            group = { part: s.part, part_title: s.part_title, sections: [] };
+                            partMap.set(s.part, group);
+                            groups.push(group);
+                          }
+                          group.sections.push(s);
+                        }
+                        setActParts(groups);
+                      } catch { /* */ }
+                      finally { setActLoading(false); }
+                    }
+                  }}
                   className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
                 >
                   <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Act</span>
@@ -615,7 +643,7 @@ export default function TariffSearchPage() {
             </div>
           </>
         ) : activeView === 'act' ? (
-          // ── Customs Act 1901 TOC ─────────────────────────────────
+          // ── Customs Act 1901 ─────────────────────────────────────
           <div>
             <div className="flex items-center justify-between mb-6">
               <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
@@ -640,29 +668,62 @@ export default function TariffSearchPage() {
                 type="text"
                 value={actFilter}
                 onChange={(e) => setActFilter(e.target.value)}
-                placeholder="Search parts..."
+                placeholder="Search parts, divisions, or sections..."
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
               />
-              <p className="text-xs text-gray-400 mt-2">{filteredActParts.length} of {CUSTOMS_ACT_PARTS.length} parts</p>
+              <p className="text-xs text-gray-400 mt-2">
+                {filteredActParts.length} of {actParts.length} parts ({actSections.length} sections total)
+              </p>
             </div>
 
-            <div className="space-y-2">
-              {filteredActParts.map((p) => (
-                <a
-                  key={p.part}
-                  href={LEGISLATION_BASE}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block bg-white rounded-lg shadow px-4 py-3 hover:bg-blue-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono font-bold text-blue-700 w-28 shrink-0">{p.part}</span>
-                    <span className="text-gray-800">{p.title}</span>
-                    <ExternalIcon className="shrink-0 ml-auto" />
+            {actLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                <p className="text-gray-500 mt-4">Loading Customs Act...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredActParts.map((pg) => (
+                  <div key={pg.part} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button
+                      onClick={() => setExpandedPart(expandedPart === pg.part ? null : pg.part)}
+                      className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-blue-50 transition-colors"
+                    >
+                      <div>
+                        <span className="font-mono font-bold text-blue-700 mr-3">{pg.part}</span>
+                        <span className="text-gray-800">{pg.part_title}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{pg.sections.length} sections</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedPart === pg.part ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+                    {expandedPart === pg.part && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {pg.sections.map((s) => (
+                          <div
+                            key={s.id}
+                            className="px-6 py-2 text-sm hover:bg-blue-50 transition-colors"
+                          >
+                            <div className="flex items-start gap-3">
+                              <span className="font-mono text-blue-600 font-medium w-16 shrink-0">s.{s.section_number}</span>
+                              <div className="flex-1">
+                                <span className="text-gray-700">{s.section_title}</span>
+                                {s.division_title && (
+                                  <span className="text-xs text-gray-400 ml-2">({s.division_title})</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </a>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : activeSchedule ? (
           // ── Schedule Browse View ─────────────────────────────────
