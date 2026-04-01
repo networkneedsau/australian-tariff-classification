@@ -193,6 +193,11 @@ interface TdActPartGroup { part: string; part_title: string; sections: TdActRow[
 interface TdRegRow { id: number; part: string; part_title: string; division: string | null; division_title: string | null; subdivision: string | null; regulation_number: string; regulation_title: string; content: string | null; }
 interface TdRegPartGroup { part: string; part_title: string; regulations: TdRegRow[]; }
 
+// ── Customs (International Obligations) Regulation 2015 ───────────
+
+interface IntlObRow { id: number; part: string; part_title: string; division: string | null; division_title: string | null; regulation_number: string; regulation_title: string; content: string | null; }
+interface IntlObPartGroup { part: string; part_title: string; regulations: IntlObRow[]; }
+
 // ── Dumping Notices ────────────────────────────────────────────────
 
 interface DumpingRow {
@@ -321,7 +326,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -375,6 +380,13 @@ export default function TariffSearchPage() {
   const [bioRegsChapters, setBioRegsChapters] = useState<BioChapterGroup[]>([]);
   const [expandedBioRegsCh, setExpandedBioRegsCh] = useState<string | null>(null);
   const [bioRegsLoading, setBioRegsLoading] = useState(false);
+
+  // International Obligations data
+  const [intlObData, setIntlObData] = useState<IntlObRow[]>([]);
+  const [intlObParts, setIntlObParts] = useState<IntlObPartGroup[]>([]);
+  const [expandedIntlObPart, setExpandedIntlObPart] = useState<string | null>(null);
+  const [intlObLoading, setIntlObLoading] = useState(false);
+  const [expandedIntlObSection, setExpandedIntlObSection] = useState<number | null>(null);
 
   // Trade Descriptions data
   const [tdActData, setTdActData] = useState<TdActRow[]>([]);
@@ -431,6 +443,7 @@ export default function TariffSearchPage() {
   const [bioRegsFilter, setBioRegsFilter] = useState('');
   const [tdActFilter, setTdActFilter] = useState('');
   const [tdRegsFilter, setTdRegsFilter] = useState('');
+  const [intlObFilter, setIntlObFilter] = useState('');
   const [rulesFilter, setRulesFilter] = useState('');
   const [sectionsFilter, setSectionsFilter] = useState('');
   const [ftaFilter, setFtaFilter] = useState('');
@@ -624,6 +637,10 @@ export default function TariffSearchPage() {
     ? bioRegsChapters.map(c => ({ ...c, entries: c.entries.filter(e => (e.part_title || '').toLowerCase().includes(bioRegsFilter.toLowerCase()) || (e.division_title || '').toLowerCase().includes(bioRegsFilter.toLowerCase()) || (e.section_range || '').toLowerCase().includes(bioRegsFilter.toLowerCase())) })).filter(c => c.entries.length > 0)
     : bioRegsChapters;
 
+  const filteredIntlObParts = intlObFilter
+    ? intlObParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_title.toLowerCase().includes(intlObFilter.toLowerCase()) || r.regulation_number.toLowerCase().includes(intlObFilter.toLowerCase()) || (r.division_title || '').toLowerCase().includes(intlObFilter.toLowerCase()) || (r.content || '').toLowerCase().includes(intlObFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
+    : intlObParts;
+
   const filteredTdActParts = tdActFilter
     ? tdActParts.map(p => ({ ...p, sections: p.sections.filter(s => s.section_title.toLowerCase().includes(tdActFilter.toLowerCase()) || s.section_number.toLowerCase().includes(tdActFilter.toLowerCase())) })).filter(p => p.sections.length > 0)
     : tdActParts;
@@ -758,7 +775,9 @@ export default function TariffSearchPage() {
                             ? 'Commerce (Trade Descriptions) Act 1905'
                             : activeView === 'td-regs'
                               ? 'Commerce (Trade Descriptions) Regulations 2016'
-                              : activeView === 'chemicals'
+                              : activeView === 'intl-ob'
+                                ? 'Customs (International Obligations) Regulation 2015'
+                                : activeView === 'chemicals'
                     ? 'Chemical Index — CWC Scheduled Chemicals'
                     : activeView === 'ahecc'
                       ? 'AHECC — Export Commodity Classification'
@@ -1075,6 +1094,31 @@ export default function TariffSearchPage() {
                   >
                     <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Regs</span>
                     <span className="text-sm text-gray-700">Prohibited Imports Regulations 1956</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setLegislationDropdownOpen(false);
+                      setActiveView('intl-ob');
+                      setActiveSchedule(null);
+                      setIntlObFilter('');
+                      setExpandedIntlObPart(null);
+                      if (intlObData.length === 0) {
+                        setIntlObLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/intl-obligations');
+                          const data: IntlObRow[] = await res.json();
+                          setIntlObData(data);
+                          const groups: IntlObPartGroup[] = [];
+                          const m = new Map<string, IntlObPartGroup>();
+                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
+                          setIntlObParts(groups);
+                        } catch { /* */ } finally { setIntlObLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Intl Ob</span>
+                    <span className="text-sm text-gray-700">International Obligations Regulation 2015</span>
                   </button>
 
                   <div className="border-t border-gray-100 mx-3" />
@@ -1947,6 +1991,57 @@ export default function TariffSearchPage() {
               </div>
             );
           })()
+        ) : activeView === 'intl-ob' ? (
+          // ── International Obligations Regulation ───────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                Back to Search
+              </button>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">Customs (International Obligations) Regulation 2015</h2>
+              <p className="text-xs text-gray-500 mb-3">{intlObParts.length} parts, {intlObData.length} regulations — covers FTA record keeping, drawback, anti-dumping, UN sanctions</p>
+              <input type="text" value={intlObFilter} onChange={(e) => setIntlObFilter(e.target.value)} placeholder="Search regulations..." className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" />
+            </div>
+            {intlObLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center"><div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" /></div>
+            ) : (
+              <div className="space-y-3">
+                {filteredIntlObParts.map((pg) => (
+                  <div key={pg.part} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button onClick={() => setExpandedIntlObPart(expandedIntlObPart === pg.part ? null : pg.part)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-blue-50 transition-colors">
+                      <div><span className="font-mono font-bold text-blue-700 mr-3">{pg.part}</span><span className="text-gray-800">{pg.part_title}</span></div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{pg.regulations.length}</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedIntlObPart === pg.part ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </button>
+                    {expandedIntlObPart === pg.part && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {pg.regulations.map((r) => (
+                          <div key={r.id} className="px-6 py-2 text-sm hover:bg-blue-50 transition-colors">
+                            <button onClick={() => setExpandedIntlObSection(expandedIntlObSection === r.id ? null : r.id)} className="w-full text-left flex items-start gap-3">
+                              <span className="font-mono text-blue-600 font-medium w-16 shrink-0">r.{r.regulation_number}</span>
+                              <div className="flex-1">
+                                <span className="text-gray-700 font-medium">{r.regulation_title}</span>
+                                {r.division && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{r.division}</span>}
+                                {r.content && <span className="text-xs text-blue-400 ml-2">{expandedIntlObSection === r.id ? '\u25B2' : '\u25BC'}</span>}
+                              </div>
+                            </button>
+                            {expandedIntlObSection === r.id && r.content && (
+                              <div className="mt-2 ml-16 pl-4 border-l-2 border-blue-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">{r.content}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (activeView === 'td-act' || activeView === 'td-regs') ? (
           // ── Trade Descriptions Act / Regs ──────────────────────
           (() => {
