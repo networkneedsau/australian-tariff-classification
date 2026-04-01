@@ -147,6 +147,7 @@ interface GstActRow {
   part_title: string | null;
   division: string;
   division_title: string;
+  content: string | null;
 }
 
 interface GstActChapterGroup {
@@ -356,6 +357,7 @@ export default function TariffSearchPage() {
   const [gstActChapters, setGstActChapters] = useState<GstActChapterGroup[]>([]);
   const [expandedGstActCh, setExpandedGstActCh] = useState<string | null>(null);
   const [gstActLoading, setGstActLoading] = useState(false);
+  const [expandedGstActDiv, setExpandedGstActDiv] = useState<number | null>(null);
 
   // GST Regs data
   const [gstRegsData, setGstRegsData] = useState<GstRegRow[]>([]);
@@ -1801,13 +1803,19 @@ export default function TariffSearchPage() {
                       <div className="border-t border-gray-100 divide-y divide-gray-50">
                         {ch.divisions.map((d) => (
                           <div key={d.id} className="px-6 py-2 text-sm hover:bg-green-50 transition-colors">
-                            <div className="flex items-start gap-3">
+                            <button onClick={() => setExpandedGstActDiv(expandedGstActDiv === d.id ? null : d.id)} className="w-full text-left flex items-start gap-3">
                               <span className="font-mono text-green-600 font-medium w-28 shrink-0">{d.division}</span>
                               <div className="flex-1">
-                                <span className="text-gray-700">{d.division_title}</span>
+                                <span className="text-gray-700 font-medium">{d.division_title}</span>
                                 {d.part && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{d.part}</span>}
+                                {d.content && <span className="text-xs text-green-400 ml-2">{expandedGstActDiv === d.id ? '\u25B2' : '\u25BC'}</span>}
                               </div>
-                            </div>
+                            </button>
+                            {expandedGstActDiv === d.id && d.content && (
+                              <div className="mt-2 ml-28 pl-4 border-l-2 border-green-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
+                                {d.content}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
