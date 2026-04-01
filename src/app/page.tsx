@@ -110,6 +110,7 @@ interface RegulationRow {
   regulation_number: string;
   regulation_title: string;
   category: string | null;
+  content: string | null;
 }
 
 interface RegPartGroup {
@@ -346,6 +347,7 @@ export default function TariffSearchPage() {
   const [regParts, setRegParts] = useState<RegPartGroup[]>([]);
   const [expandedRegPart, setExpandedRegPart] = useState<string | null>(null);
   const [regsLoading, setRegsLoading] = useState(false);
+  const [expandedRegSection, setExpandedRegSection] = useState<number | null>(null);
 
   // GST Act data
   const [gstActData, setGstActData] = useState<GstActRow[]>([]);
@@ -1730,15 +1732,21 @@ export default function TariffSearchPage() {
                       <div className="border-t border-gray-100 divide-y divide-gray-50">
                         {pg.regulations.map((r) => (
                           <div key={r.id} className="px-6 py-2 text-sm hover:bg-blue-50 transition-colors">
-                            <div className="flex items-start gap-3">
+                            <button onClick={() => setExpandedRegSection(expandedRegSection === r.id ? null : r.id)} className="w-full text-left flex items-start gap-3">
                               <span className="font-mono text-blue-600 font-medium w-24 shrink-0">r.{r.regulation_number}</span>
                               <div className="flex-1">
-                                <span className="text-gray-700">{r.regulation_title}</span>
+                                <span className="text-gray-700 font-medium">{r.regulation_title}</span>
                                 {r.category && (
                                   <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{r.category}</span>
                                 )}
+                                {r.content && <span className="text-xs text-blue-400 ml-2">{expandedRegSection === r.id ? '\u25B2' : '\u25BC'}</span>}
                               </div>
-                            </div>
+                            </button>
+                            {expandedRegSection === r.id && r.content && (
+                              <div className="mt-2 ml-24 pl-4 border-l-2 border-blue-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">
+                                {r.content}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
