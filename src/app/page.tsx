@@ -187,7 +187,7 @@ interface BioChapterGroup { chapter: string; chapter_title: string; entries: Bio
 interface TdActRow { id: number; part: string; part_title: string; section_number: string; section_title: string; content: string | null; }
 interface TdActPartGroup { part: string; part_title: string; sections: TdActRow[]; }
 
-interface TdRegRow { id: number; part: string; part_title: string; division: string | null; division_title: string | null; subdivision: string | null; regulation_number: string; regulation_title: string; }
+interface TdRegRow { id: number; part: string; part_title: string; division: string | null; division_title: string | null; subdivision: string | null; regulation_number: string; regulation_title: string; content: string | null; }
 interface TdRegPartGroup { part: string; part_title: string; regulations: TdRegRow[]; }
 
 // ── Dumping Notices ────────────────────────────────────────────────
@@ -1976,7 +1976,7 @@ export default function TariffSearchPage() {
                                 const num = isSection ? (item as TdActRow).section_number : (item as TdRegRow).regulation_number;
                                 const title2 = isSection ? (item as TdActRow).section_title : (item as TdRegRow).regulation_title;
                                 const reg = !isSection ? (item as TdRegRow) : null;
-                                const sectionContent = isSection ? (item as TdActRow).content : null;
+                                const sectionContent = isSection ? (item as TdActRow).content : (item as TdRegRow).content;
                                 const isExpanded = expandedTdSection === item.id;
                                 return (
                                   <div key={item.id} className="px-6 py-2 text-sm hover:bg-purple-50 transition-colors">
