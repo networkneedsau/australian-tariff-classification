@@ -24,6 +24,8 @@ import { CustomsRegsUpdater } from './updaters/customs-regs-updater';
 import { AntiDumpingActUpdater } from './updaters/anti-dumping-act-updater';
 import { ProhibitedExportsUpdater } from './updaters/prohibited-exports-updater';
 import { ExchangeRatesUpdater } from './updaters/exchange-rates-updater';
+import { InstrumentsUpdater } from './updaters/instruments-updater';
+import { PreferenceSchemesUpdater } from './updaters/preference-schemes-updater';
 
 const SRC = 'registry';
 
@@ -41,7 +43,7 @@ export function getUpdaterRegistry(): Map<string, BaseUpdater> {
 
   registry = new Map<string, BaseUpdater>();
 
-  // ---- register all 18 updaters ----
+  // ---- register all 21 updaters ----
   const updaters: BaseUpdater[] = [
     new Schedule1Updater(),          // 1.  Countries
     new Schedule3Updater(),          // 2.  Tariff Classifications
@@ -62,6 +64,8 @@ export function getUpdaterRegistry(): Map<string, BaseUpdater> {
     new AntiDumpingActUpdater(),     // 17. Anti-Dumping Act
     new ProhibitedExportsUpdater(),  // 18. Prohibited Exports Regs
     new ExchangeRatesUpdater(),      // 19. ABF Exchange Rates
+    new InstrumentsUpdater(),        // 20. ABF Instruments (TCO/AD/CV)
+    new PreferenceSchemesUpdater(),  // 21. ABF Preference Schemes (FTA)
   ];
 
   for (const u of updaters) {

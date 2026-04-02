@@ -164,6 +164,18 @@ export function getDb(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_roo_fta ON roo_rules(fta_schedule);
     CREATE INDEX IF NOT EXISTS idx_roo_hs ON roo_rules(hs_code_start);
+
+    -- Preference schemes (FTA / trade agreements)
+    CREATE TABLE IF NOT EXISTS preference_schemes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      scheme_code TEXT NOT NULL UNIQUE,
+      scheme_name TEXT NOT NULL,
+      start_date TEXT,
+      end_date TEXT,
+      source TEXT DEFAULT 'ABF-PRSPSNAP',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_pref_scheme_code ON preference_schemes(scheme_code);
   `);
 
   // Auto-populate tco_tariff_links from existing tco_references in tariff_classifications
