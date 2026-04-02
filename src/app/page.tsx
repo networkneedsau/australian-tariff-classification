@@ -329,7 +329,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -390,6 +390,17 @@ export default function TariffSearchPage() {
   const [expandedIntlObPart, setExpandedIntlObPart] = useState<string | null>(null);
   const [intlObLoading, setIntlObLoading] = useState(false);
   const [expandedIntlObSection, setExpandedIntlObSection] = useState<number | null>(null);
+
+  // Customs Tariff Act/Regs data
+  const [ctActData, setCtActData] = useState<TdActRow[]>([]);
+  const [ctActParts, setCtActParts] = useState<TdActPartGroup[]>([]);
+  const [expandedCtActPart, setExpandedCtActPart] = useState<string | null>(null);
+  const [ctActLoading, setCtActLoading] = useState(false);
+  const [ctRegsData, setCtRegsData] = useState<TdActRow[]>([]);
+  const [ctRegsParts, setCtRegsParts] = useState<TdActPartGroup[]>([]);
+  const [expandedCtRegsPart, setExpandedCtRegsPart] = useState<string | null>(null);
+  const [ctRegsLoading, setCtRegsLoading] = useState(false);
+  const [expandedCtSection, setExpandedCtSection] = useState<number | null>(null);
 
   // Customs Regulation 2015 data
   const [crData, setCrData] = useState<IntlObRow[]>([]);
@@ -463,6 +474,8 @@ export default function TariffSearchPage() {
   const [intlObFilter, setIntlObFilter] = useState('');
   const [peFilter, setPeFilter] = useState('');
   const [crFilter, setCrFilter] = useState('');
+  const [ctActFilter, setCtActFilter] = useState('');
+  const [ctRegsFilter, setCtRegsFilter] = useState('');
   const [rulesFilter, setRulesFilter] = useState('');
   const [sectionsFilter, setSectionsFilter] = useState('');
   const [ftaFilter, setFtaFilter] = useState('');
@@ -660,6 +673,14 @@ export default function TariffSearchPage() {
     ? intlObParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_title.toLowerCase().includes(intlObFilter.toLowerCase()) || r.regulation_number.toLowerCase().includes(intlObFilter.toLowerCase()) || (r.division_title || '').toLowerCase().includes(intlObFilter.toLowerCase()) || (r.content || '').toLowerCase().includes(intlObFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
     : intlObParts;
 
+  const filteredCtActParts = ctActFilter
+    ? ctActParts.map(p => ({ ...p, sections: p.sections.filter(s => s.section_title.toLowerCase().includes(ctActFilter.toLowerCase()) || s.section_number.toLowerCase().includes(ctActFilter.toLowerCase())) })).filter(p => p.sections.length > 0)
+    : ctActParts;
+
+  const filteredCtRegsParts = ctRegsFilter
+    ? ctRegsParts.map(p => ({ ...p, sections: p.sections.filter(s => s.section_title.toLowerCase().includes(ctRegsFilter.toLowerCase()) || s.section_number.toLowerCase().includes(ctRegsFilter.toLowerCase())) })).filter(p => p.sections.length > 0)
+    : ctRegsParts;
+
   const filteredCrParts = crFilter
     ? crParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_title.toLowerCase().includes(crFilter.toLowerCase()) || r.regulation_number.toLowerCase().includes(crFilter.toLowerCase()) || (r.division_title || '').toLowerCase().includes(crFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
     : crParts;
@@ -808,7 +829,11 @@ export default function TariffSearchPage() {
                                   ? 'Customs (Prohibited Exports) Regulations 1958'
                                   : activeView === 'customs-reg'
                                     ? 'Customs Regulation 2015'
-                                    : activeView === 'chemicals'
+                                    : activeView === 'ct-act'
+                                      ? 'Customs Tariff Act 1995'
+                                      : activeView === 'ct-regs'
+                                        ? 'Customs Tariff Regulations 2004'
+                                        : activeView === 'chemicals'
                     ? 'Chemical Index — CWC Scheduled Chemicals'
                     : activeView === 'ahecc'
                       ? 'AHECC — Export Commodity Classification'
@@ -1200,6 +1225,62 @@ export default function TariffSearchPage() {
                   >
                     <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Cust Reg</span>
                     <span className="text-sm text-gray-700">Customs Regulation 2015</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 mx-3" />
+
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tariff</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setLegislationDropdownOpen(false);
+                      setActiveView('ct-act');
+                      setActiveSchedule(null);
+                      setCtActFilter('');
+                      setExpandedCtActPart(null);
+                      if (ctActData.length === 0) {
+                        setCtActLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/customs-tariff-act');
+                          const data: TdActRow[] = await res.json();
+                          setCtActData(data);
+                          const groups: TdActPartGroup[] = [];
+                          const m = new Map<string, TdActPartGroup>();
+                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
+                          setCtActParts(groups);
+                        } catch { /* */ } finally { setCtActLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">Tariff Act</span>
+                    <span className="text-sm text-gray-700">Customs Tariff Act 1995</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setLegislationDropdownOpen(false);
+                      setActiveView('ct-regs');
+                      setActiveSchedule(null);
+                      setCtRegsFilter('');
+                      setExpandedCtRegsPart(null);
+                      if (ctRegsData.length === 0) {
+                        setCtRegsLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/customs-tariff-regs');
+                          const data: TdActRow[] = await res.json();
+                          setCtRegsData(data);
+                          const groups: TdActPartGroup[] = [];
+                          const m = new Map<string, TdActPartGroup>();
+                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
+                          setCtRegsParts(groups);
+                        } catch { /* */ } finally { setCtRegsLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">Tariff Reg</span>
+                    <span className="text-sm text-gray-700">Customs Tariff Regulations 2004</span>
                   </button>
 
                   <div className="border-t border-gray-100 mx-3" />
@@ -2061,6 +2142,70 @@ export default function TariffSearchPage() {
                                     {e.section_range && <span className="text-xs text-gray-400 ml-2">({e.section_range})</span>}
                                   </div>
                                 </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()
+        ) : (activeView === 'ct-act' || activeView === 'ct-regs') ? (
+          // ── Customs Tariff Act / Regs ──────────────────────────
+          (() => {
+            const isAct = activeView === 'ct-act';
+            const title = isAct ? 'Customs Tariff Act 1995' : 'Customs Tariff Regulations 2004';
+            const data = isAct ? ctActData : ctRegsData;
+            const loading = isAct ? ctActLoading : ctRegsLoading;
+            const filter = isAct ? ctActFilter : ctRegsFilter;
+            const setFilter = isAct ? setCtActFilter : setCtRegsFilter;
+            const parts = isAct ? filteredCtActParts : filteredCtRegsParts;
+            const allParts = isAct ? ctActParts : ctRegsParts;
+            const expanded = isAct ? expandedCtActPart : expandedCtRegsPart;
+            const setExpanded = isAct ? setExpandedCtActPart : setExpandedCtRegsPart;
+            return (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    Back to Search
+                  </button>
+                </div>
+                <div className="bg-white rounded-lg shadow p-4 mb-4">
+                  <h2 className="text-xl font-semibold text-gray-800 mb-1">{title}</h2>
+                  <p className="text-xs text-gray-500 mb-3">{allParts.length} parts, {data.length} {isAct ? 'sections' : 'regulations'}</p>
+                  <input type="text" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search..." className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" />
+                </div>
+                {loading ? (
+                  <div className="bg-white rounded-lg shadow p-12 text-center"><div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" /></div>
+                ) : (
+                  <div className="space-y-3">
+                    {parts.map((pg) => (
+                      <div key={pg.part} className="bg-white rounded-lg shadow overflow-hidden">
+                        <button onClick={() => setExpanded(expanded === pg.part ? null : pg.part)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-indigo-50 transition-colors">
+                          <div><span className="font-mono font-bold text-indigo-700 mr-3">{pg.part}</span><span className="text-gray-800">{pg.part_title}</span></div>
+                          <div className="flex items-center gap-2 shrink-0 ml-4">
+                            <span className="text-xs text-gray-400">{pg.sections.length}</span>
+                            <svg className={`w-4 h-4 text-gray-400 transition-transform ${expanded === pg.part ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                          </div>
+                        </button>
+                        {expanded === pg.part && (
+                          <div className="border-t border-gray-100 divide-y divide-gray-50">
+                            {pg.sections.map((s) => (
+                              <div key={s.id} className="px-6 py-2 text-sm hover:bg-indigo-50 transition-colors">
+                                <button onClick={() => setExpandedCtSection(expandedCtSection === s.id ? null : s.id)} className="w-full text-left flex items-start gap-3">
+                                  <span className="font-mono text-indigo-600 font-medium w-20 shrink-0">s.{s.section_number}</span>
+                                  <div className="flex-1">
+                                    <span className="text-gray-700 font-medium">{s.section_title}</span>
+                                    {s.content && <span className="text-xs text-indigo-400 ml-2">{expandedCtSection === s.id ? '\u25B2' : '\u25BC'}</span>}
+                                  </div>
+                                </button>
+                                {expandedCtSection === s.id && s.content && (
+                                  <div className="mt-2 ml-20 pl-4 border-l-2 border-indigo-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">{s.content}</div>
+                                )}
                               </div>
                             ))}
                           </div>
