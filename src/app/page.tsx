@@ -498,7 +498,7 @@ export default function TariffSearchPage() {
         setComplianceDropdownOpen(false);
       }
       if (legislationDropdownRef.current && !legislationDropdownRef.current.contains(e.target as Node)) {
-        setLegislationDropdownOpen(false);
+        setComplianceDropdownOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -868,7 +868,7 @@ export default function TariffSearchPage() {
             {/* Compliance & Prohibited Goods Dropdown */}
             <div className="relative" ref={complianceDropdownRef}>
               <button
-                onClick={() => { setComplianceDropdownOpen(!complianceDropdownOpen); setDropdownOpen(false); setLegislationDropdownOpen(false); }}
+                onClick={() => { setComplianceDropdownOpen(!complianceDropdownOpen); setDropdownOpen(false); setComplianceDropdownOpen(false); }}
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
               >
                 Compliance
@@ -1070,29 +1070,14 @@ export default function TariffSearchPage() {
                     <span className="font-mono text-xs font-bold text-amber-700 w-24 shrink-0 pt-0.5">Ref Files</span>
                     <span className="text-sm text-gray-700">ABF Software Reference Files</span>
                   </button>
-                </div>
-              )}
-            </div>
+                  <div className="border-t border-gray-100 mx-3" />
 
-            {/* Legislation Dropdown */}
-            <div className="relative" ref={legislationDropdownRef}>
-              <button
-                onClick={() => { setLegislationDropdownOpen(!legislationDropdownOpen); setDropdownOpen(false); setComplianceDropdownOpen(false); }}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                Legislation
-                <svg className={`w-4 h-4 transition-transform ${legislationDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {legislationDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[80vh] overflow-y-auto">
                   <div className="px-3 pt-3 pb-1">
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Acts</p>
                   </div>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('act');
                       setActiveSchedule(null);
                       setActFilter('');
@@ -1132,7 +1117,7 @@ export default function TariffSearchPage() {
                   </div>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('regulations');
                       setActiveSchedule(null);
                       setRegsFilter('');
@@ -1167,7 +1152,7 @@ export default function TariffSearchPage() {
                   </button>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('intl-ob');
                       setActiveSchedule(null);
                       setIntlObFilter('');
@@ -1192,7 +1177,7 @@ export default function TariffSearchPage() {
                   </button>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('pe-regs');
                       setActiveSchedule(null);
                       setPeFilter('');
@@ -1217,7 +1202,7 @@ export default function TariffSearchPage() {
                   </button>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('customs-reg');
                       setActiveSchedule(null);
                       setCrFilter('');
@@ -1248,7 +1233,7 @@ export default function TariffSearchPage() {
                   </div>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('ct-act');
                       setActiveSchedule(null);
                       setCtActFilter('');
@@ -1273,7 +1258,7 @@ export default function TariffSearchPage() {
                   </button>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('ct-regs');
                       setActiveSchedule(null);
                       setCtRegsFilter('');
@@ -1298,7 +1283,7 @@ export default function TariffSearchPage() {
                   </button>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('ad-act');
                       setActiveSchedule(null);
                       setAdActFilter('');
@@ -1329,7 +1314,7 @@ export default function TariffSearchPage() {
                   </div>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('gst-act');
                       setActiveSchedule(null);
                       setGstActFilter('');
@@ -1359,7 +1344,7 @@ export default function TariffSearchPage() {
                   </button>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('gst-regs');
                       setActiveSchedule(null);
                       setGstRegsFilter('');
@@ -1397,7 +1382,7 @@ export default function TariffSearchPage() {
                   </div>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('bio-act');
                       setActiveSchedule(null);
                       setBioActFilter('');
@@ -1422,7 +1407,7 @@ export default function TariffSearchPage() {
                   </button>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('bio-regs');
                       setActiveSchedule(null);
                       setBioRegsFilter('');
@@ -1453,7 +1438,7 @@ export default function TariffSearchPage() {
                   </div>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('td-act');
                       setActiveSchedule(null);
                       setTdActFilter('');
@@ -1478,7 +1463,7 @@ export default function TariffSearchPage() {
                   </button>
                   <button
                     onClick={async () => {
-                      setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('td-regs');
                       setActiveSchedule(null);
                       setTdRegsFilter('');
@@ -1509,7 +1494,7 @@ export default function TariffSearchPage() {
             {/* Browse Schedules Dropdown */}
             <div className="relative" ref={dropdownRef}>
               <button
-                onClick={() => { setDropdownOpen(!dropdownOpen); setComplianceDropdownOpen(false); setLegislationDropdownOpen(false); }}
+                onClick={() => { setDropdownOpen(!dropdownOpen); setComplianceDropdownOpen(false); setComplianceDropdownOpen(false); }}
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
               >
                 Browse Schedules
