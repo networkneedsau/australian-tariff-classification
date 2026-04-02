@@ -377,6 +377,8 @@ export default function TariffSearchPage() {
   const complianceDropdownRef = useRef<HTMLDivElement>(null);
   const [legislationDropdownOpen, setLegislationDropdownOpen] = useState(false);
   const legislationDropdownRef = useRef<HTMLDivElement>(null);
+  const [referenceDropdownOpen, setReferenceDropdownOpen] = useState(false);
+  const referenceRef = useRef<HTMLDivElement>(null);
 
   // Schedule data
   const [sections, setSections] = useState<SectionData[]>([]);
@@ -582,7 +584,10 @@ export default function TariffSearchPage() {
         setComplianceDropdownOpen(false);
       }
       if (legislationDropdownRef.current && !legislationDropdownRef.current.contains(e.target as Node)) {
-        setComplianceDropdownOpen(false);
+        setLegislationDropdownOpen(false);
+      }
+      if (referenceRef.current && !referenceRef.current.contains(e.target as Node)) {
+        setReferenceDropdownOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -917,11 +922,11 @@ export default function TariffSearchPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-[#003366] text-white py-4 px-6 shadow-lg">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <header className="bg-gradient-to-r from-[#001a33] to-[#003366] text-white py-2 px-6 shadow-lg">
+        <div className="max-w-[1440px] mx-auto flex items-center justify-between">
           <div>
             <h1
-              className={`text-2xl font-bold ${activeView !== 'search' ? 'cursor-pointer hover:text-blue-200' : ''}`}
+              className={`text-xl font-bold ${activeView !== 'search' ? 'cursor-pointer hover:text-blue-200' : ''}`}
               onClick={activeView !== 'search' ? goHome : undefined}
             >
               Australian Tariff Classification
@@ -995,11 +1000,704 @@ export default function TariffSearchPage() {
 
           {/* Dropdowns row */}
           <div className="flex items-center gap-2">
-            {/* Compliance & Prohibited Goods Dropdown */}
+
+            {/* ── Dropdown 1: Legislation ── */}
+            <div className="relative" ref={legislationDropdownRef}>
+              <button
+                onClick={() => { setLegislationDropdownOpen(!legislationDropdownOpen); setDropdownOpen(false); setComplianceDropdownOpen(false); setReferenceDropdownOpen(false); }}
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors flex items-center gap-2"
+              >
+                Legislation
+                <svg className={`w-4 h-4 transition-transform ${legislationDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {legislationDropdownOpen && (
+                <div className="absolute left-0 mt-2 w-[700px] bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[85vh] overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-0">
+                    <div>
+                      {/* Customs section */}
+                      <div className="px-3 pt-3 pb-1">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Customs</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('act');
+                          setActiveSchedule(null);
+                          setActFilter('');
+                          setExpandedPart(null);
+                          if (actSections.length === 0) {
+                            setActLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/act');
+                              const data: ActSectionRow[] = await res.json();
+                              setActSections(data);
+                              const groups: ActPartGroup[] = [];
+                              const partMap = new Map<string, ActPartGroup>();
+                              for (const s of data) {
+                                let group = partMap.get(s.part);
+                                if (!group) {
+                                  group = { part: s.part, part_title: s.part_title, sections: [] };
+                                  partMap.set(s.part, group);
+                                  groups.push(group);
+                                }
+                                group.sections.push(s);
+                              }
+                              setActParts(groups);
+                            } catch { /* */ }
+                            finally { setActLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-blue-700 w-16 shrink-0 pt-0.5">Act</span>
+                        <span className="text-sm text-gray-700">Customs Act 1901</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('customs-reg');
+                          setActiveSchedule(null);
+                          setCrFilter('');
+                          setExpandedCrPart(null);
+                          if (crData.length === 0) {
+                            setCrLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/customs-reg');
+                              const data: IntlObRow[] = await res.json();
+                              setCrData(data);
+                              const groups: IntlObPartGroup[] = [];
+                              const m = new Map<string, IntlObPartGroup>();
+                              for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
+                              setCrParts(groups);
+                            } catch { /* */ } finally { setCrLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-blue-700 w-16 shrink-0 pt-0.5">Regs</span>
+                        <span className="text-sm text-gray-700">Customs Regulation 2015</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('regulations');
+                          setActiveSchedule(null);
+                          setRegsFilter('');
+                          setExpandedRegPart(null);
+                          if (regsData.length === 0) {
+                            setRegsLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/regulations');
+                              const data: RegulationRow[] = await res.json();
+                              setRegsData(data);
+                              const groups: RegPartGroup[] = [];
+                              const partMap = new Map<string, RegPartGroup>();
+                              for (const r of data) {
+                                const key = r.part || 'Other';
+                                let group = partMap.get(key);
+                                if (!group) {
+                                  group = { part: key, part_title: r.part_title || key, regulations: [] };
+                                  partMap.set(key, group);
+                                  groups.push(group);
+                                }
+                                group.regulations.push(r);
+                              }
+                              setRegParts(groups);
+                            } catch { /* */ }
+                            finally { setRegsLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-blue-700 w-16 shrink-0 pt-0.5">Imports</span>
+                        <span className="text-sm text-gray-700">Prohibited Imports Regs 1956</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('pe-regs');
+                          setActiveSchedule(null);
+                          setPeFilter('');
+                          setExpandedPePart(null);
+                          if (peData.length === 0) {
+                            setPeLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/prohibited-exports');
+                              const data: IntlObRow[] = await res.json();
+                              setPeData(data);
+                              const groups: IntlObPartGroup[] = [];
+                              const m = new Map<string, IntlObPartGroup>();
+                              for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
+                              setPeParts(groups);
+                            } catch { /* */ } finally { setPeLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-red-700 w-16 shrink-0 pt-0.5">Exports</span>
+                        <span className="text-sm text-gray-700">Prohibited Exports Regs 1958</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('intl-ob');
+                          setActiveSchedule(null);
+                          setIntlObFilter('');
+                          setExpandedIntlObPart(null);
+                          if (intlObData.length === 0) {
+                            setIntlObLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/intl-obligations');
+                              const data: IntlObRow[] = await res.json();
+                              setIntlObData(data);
+                              const groups: IntlObPartGroup[] = [];
+                              const m = new Map<string, IntlObPartGroup>();
+                              for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
+                              setIntlObParts(groups);
+                            } catch { /* */ } finally { setIntlObLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-blue-700 w-16 shrink-0 pt-0.5">Intl Ob</span>
+                        <span className="text-sm text-gray-700">Intl Obligations Reg 2015</span>
+                      </button>
+
+                      <div className="border-t border-gray-100 mx-3" />
+
+                      {/* Tariff section */}
+                      <div className="px-3 pt-3 pb-1">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tariff</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('ct-act');
+                          setActiveSchedule(null);
+                          setCtActFilter('');
+                          setExpandedCtActPart(null);
+                          if (ctActData.length === 0) {
+                            setCtActLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/customs-tariff-act');
+                              const data: TdActRow[] = await res.json();
+                              setCtActData(data);
+                              const groups: TdActPartGroup[] = [];
+                              const m = new Map<string, TdActPartGroup>();
+                              for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
+                              setCtActParts(groups);
+                            } catch { /* */ } finally { setCtActLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-indigo-700 w-16 shrink-0 pt-0.5">Act</span>
+                        <span className="text-sm text-gray-700">Customs Tariff Act 1995</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('ct-regs');
+                          setActiveSchedule(null);
+                          setCtRegsFilter('');
+                          setExpandedCtRegsPart(null);
+                          if (ctRegsData.length === 0) {
+                            setCtRegsLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/customs-tariff-regs');
+                              const data: TdActRow[] = await res.json();
+                              setCtRegsData(data);
+                              const groups: TdActPartGroup[] = [];
+                              const m = new Map<string, TdActPartGroup>();
+                              for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
+                              setCtRegsParts(groups);
+                            } catch { /* */ } finally { setCtRegsLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-indigo-700 w-16 shrink-0 pt-0.5">Regs</span>
+                        <span className="text-sm text-gray-700">Customs Tariff Regs 2004</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('ad-act');
+                          setActiveSchedule(null);
+                          setAdActFilter('');
+                          setExpandedAdActPart(null);
+                          if (adActData.length === 0) {
+                            setAdActLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/anti-dumping-act');
+                              const data: TdActRow[] = await res.json();
+                              setAdActData(data);
+                              const groups: TdActPartGroup[] = [];
+                              const m = new Map<string, TdActPartGroup>();
+                              for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
+                              setAdActParts(groups);
+                            } catch { /* */ } finally { setAdActLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-orange-700 w-16 shrink-0 pt-0.5">Anti-Dump</span>
+                        <span className="text-sm text-gray-700">Anti-Dumping Act 1975</span>
+                      </button>
+
+                      <div className="border-t border-gray-100 mx-3" />
+
+                      {/* Tax section */}
+                      <div className="px-3 pt-3 pb-1">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tax</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('gst-act');
+                          setActiveSchedule(null);
+                          setGstActFilter('');
+                          setExpandedGstActCh(null);
+                          if (gstActData.length === 0) {
+                            setGstActLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/gst-act');
+                              const data: GstActRow[] = await res.json();
+                              setGstActData(data);
+                              const groups: GstActChapterGroup[] = [];
+                              const chMap = new Map<string, GstActChapterGroup>();
+                              for (const d of data) {
+                                let g = chMap.get(d.chapter);
+                                if (!g) { g = { chapter: d.chapter, chapter_title: d.chapter_title, divisions: [] }; chMap.set(d.chapter, g); groups.push(g); }
+                                g.divisions.push(d);
+                              }
+                              setGstActChapters(groups);
+                            } catch { /* */ }
+                            finally { setGstActLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-green-700 w-16 shrink-0 pt-0.5">Act</span>
+                        <span className="text-sm text-gray-700">GST Act 1999</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('gst-regs');
+                          setActiveSchedule(null);
+                          setGstRegsFilter('');
+                          setExpandedGstRegsCh(null);
+                          if (gstRegsData.length === 0) {
+                            setGstRegsLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/gst-regs');
+                              const data: GstRegRow[] = await res.json();
+                              setGstRegsData(data);
+                              const groups: GstRegChapterGroup[] = [];
+                              const chMap = new Map<string, GstRegChapterGroup>();
+                              for (const d of data) {
+                                let g = chMap.get(d.chapter);
+                                if (!g) { g = { chapter: d.chapter, chapter_title: d.chapter_title, divisions: [] }; chMap.set(d.chapter, g); groups.push(g); }
+                                g.divisions.push(d);
+                              }
+                              setGstRegsChapters(groups);
+                            } catch { /* */ }
+                            finally { setGstRegsLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-green-700 w-16 shrink-0 pt-0.5">Regs</span>
+                        <span className="text-sm text-gray-700">GST Regulations 2019</span>
+                      </button>
+                    </div>
+                    <div>
+                      {/* Trade section */}
+                      <div className="px-3 pt-3 pb-1">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Trade</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('td-act');
+                          setActiveSchedule(null);
+                          setTdActFilter('');
+                          setExpandedTdActPart(null);
+                          if (tdActData.length === 0) {
+                            setTdActLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/trade-desc-act');
+                              const data: TdActRow[] = await res.json();
+                              setTdActData(data);
+                              const groups: TdActPartGroup[] = [];
+                              const m = new Map<string, TdActPartGroup>();
+                              for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
+                              setTdActParts(groups);
+                            } catch { /* */ } finally { setTdActLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-purple-700 w-16 shrink-0 pt-0.5">Act</span>
+                        <span className="text-sm text-gray-700">Trade Descriptions Act 1905</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('td-regs');
+                          setActiveSchedule(null);
+                          setTdRegsFilter('');
+                          setExpandedTdRegsPart(null);
+                          if (tdRegsData.length === 0) {
+                            setTdRegsLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/trade-desc-regs');
+                              const data: TdRegRow[] = await res.json();
+                              setTdRegsData(data);
+                              const groups: TdRegPartGroup[] = [];
+                              const m = new Map<string, TdRegPartGroup>();
+                              for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
+                              setTdRegsParts(groups);
+                            } catch { /* */ } finally { setTdRegsLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-purple-700 w-16 shrink-0 pt-0.5">Regs</span>
+                        <span className="text-sm text-gray-700">Trade Descriptions Regs 2016</span>
+                      </button>
+
+                      <div className="border-t border-gray-100 mx-3" />
+
+                      {/* Biosecurity section */}
+                      <div className="px-3 pt-3 pb-1">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Biosecurity</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('bio-act');
+                          setActiveSchedule(null);
+                          setBioActFilter('');
+                          setExpandedBioActCh(null);
+                          if (bioActData.length === 0) {
+                            setBioActLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/biosecurity-act');
+                              const data: BioActRow[] = await res.json();
+                              setBioActData(data);
+                              const groups: BioChapterGroup[] = [];
+                              const m = new Map<string, BioChapterGroup>();
+                              for (const d of data) { let g = m.get(d.chapter); if (!g) { g = { chapter: d.chapter, chapter_title: d.chapter_title, entries: [] }; m.set(d.chapter, g); groups.push(g); } g.entries.push(d); }
+                              setBioActChapters(groups);
+                            } catch { /* */ } finally { setBioActLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-teal-700 w-16 shrink-0 pt-0.5">Act</span>
+                        <span className="text-sm text-gray-700">Biosecurity Act 2015</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('bio-regs');
+                          setActiveSchedule(null);
+                          setBioRegsFilter('');
+                          setExpandedBioRegsCh(null);
+                          if (bioRegsData.length === 0) {
+                            setBioRegsLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/biosecurity-regs');
+                              const data: BioActRow[] = await res.json();
+                              setBioRegsData(data);
+                              const groups: BioChapterGroup[] = [];
+                              const m = new Map<string, BioChapterGroup>();
+                              for (const d of data) { let g = m.get(d.chapter); if (!g) { g = { chapter: d.chapter, chapter_title: d.chapter_title, entries: [] }; m.set(d.chapter, g); groups.push(g); } g.entries.push(d); }
+                              setBioRegsChapters(groups);
+                            } catch { /* */ } finally { setBioRegsLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-teal-700 w-16 shrink-0 pt-0.5">Regs</span>
+                        <span className="text-sm text-gray-700">Biosecurity Regulation 2016</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('ifc-act');
+                          setActiveSchedule(null);
+                          setIfcActFilter('');
+                          setExpandedIfcActPart(null);
+                          if (ifcActData.length === 0) {
+                            setIfcActLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/imported-food-act');
+                              const data: TdActRow[] = await res.json();
+                              setIfcActData(data);
+                              const groups: TdActPartGroup[] = [];
+                              const m = new Map<string, TdActPartGroup>();
+                              for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
+                              setIfcActParts(groups);
+                            } catch { /* */ } finally { setIfcActLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-amber-700 w-16 shrink-0 pt-0.5">IFC Act</span>
+                        <span className="text-sm text-gray-700">Imported Food Control Act 1992</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('ifc-reg');
+                          setActiveSchedule(null);
+                          setIfcRegFilter('');
+                          setExpandedIfcRegPart(null);
+                          if (ifcRegData.length === 0) {
+                            setIfcRegLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/imported-food-reg');
+                              const data: IntlObRow[] = await res.json();
+                              setIfcRegData(data);
+                              const groups: IntlObPartGroup[] = [];
+                              const m = new Map<string, IntlObPartGroup>();
+                              for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
+                              setIfcRegParts(groups);
+                            } catch { /* */ } finally { setIfcRegLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-amber-700 w-16 shrink-0 pt-0.5">IFC Reg</span>
+                        <span className="text-sm text-gray-700">Imported Food Control Reg 2019</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('il-act');
+                          setActiveSchedule(null);
+                          setIlActFilter('');
+                          setExpandedIlActPart(null);
+                          if (ilActData.length === 0) {
+                            setIlActLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/illegal-logging-act');
+                              const data: TdActRow[] = await res.json();
+                              setIlActData(data);
+                              const groups: TdActPartGroup[] = [];
+                              const m = new Map<string, TdActPartGroup>();
+                              for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
+                              setIlActParts(groups);
+                            } catch { /* */ } finally { setIlActLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-green-700 w-16 shrink-0 pt-0.5">IL Act</span>
+                        <span className="text-sm text-gray-700">Illegal Logging Act 2012</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLegislationDropdownOpen(false);
+                          setActiveView('il-reg');
+                          setActiveSchedule(null);
+                          setIlRegFilter('');
+                          setExpandedIlRegPart(null);
+                          if (ilRegData.length === 0) {
+                            setIlRegLoading(true);
+                            try {
+                              const res = await fetch('/api/tariff/illegal-logging-reg');
+                              const data: IntlObRow[] = await res.json();
+                              setIlRegData(data);
+                              const groups: IntlObPartGroup[] = [];
+                              const m = new Map<string, IntlObPartGroup>();
+                              for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
+                              setIlRegParts(groups);
+                            } catch { /* */ } finally { setIlRegLoading(false); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-green-700 w-16 shrink-0 pt-0.5">IL Reg</span>
+                        <span className="text-sm text-gray-700">Illegal Logging Reg 2012</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Dropdown 2: Classification ── */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => { setDropdownOpen(!dropdownOpen); setLegislationDropdownOpen(false); setComplianceDropdownOpen(false); setReferenceDropdownOpen(false); }}
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors flex items-center gap-2"
+              >
+                Classification
+                <svg className={`w-4 h-4 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {dropdownOpen && (
+                <div className="absolute left-0 mt-2 w-[600px] bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[85vh] overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-0">
+                    <div>
+                      {/* Main Schedules */}
+                      <div className="px-3 pt-3 pb-1">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Main Schedules</p>
+                      </div>
+                      {SCHEDULES.filter(s => ['1','2','3','4'].includes(s.id)).map(s => (
+                        <ScheduleMenuItem key={s.id} schedule={s} onClick={() => selectSchedule(s)} />
+                      ))}
+
+                      <div className="border-t border-gray-100 mx-3" />
+
+                      {/* FTA Exclusion Schedules */}
+                      <div className="px-3 pt-3 pb-1">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">FTA Exclusion Schedules</p>
+                      </div>
+                      {SCHEDULES.filter(s => !['1','2','3','4'].includes(s.id)).map(s => (
+                        <ScheduleMenuItem key={s.id} schedule={s} onClick={() => selectSchedule(s)} />
+                      ))}
+                    </div>
+                    <div>
+                      {/* Classification Tools */}
+                      <div className="px-3 pt-3 pb-1">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Classification Tools</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setDropdownOpen(false);
+                          setActiveView('precedents');
+                          setActiveSchedule(null);
+                          setGenericFilter(prev => ({ ...prev, precedents: '' }));
+                          if (!genericData['precedents']?.data?.length) {
+                            setGenericData(prev => ({ ...prev, precedents: { data: [], categories: [], loading: true } }));
+                            try {
+                              const res = await fetch('/api/tariff/precedents');
+                              const data: any[] = await res.json();
+                              const groups: {key: string, title: string, items: any[]}[] = [];
+                              const m = new Map<string, {key: string, title: string, items: any[]}>();
+                              for (const d of data) { const k = d.category || 'General'; let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
+                              setGenericData(prev => ({ ...prev, precedents: { data, categories: groups, loading: false } }));
+                            } catch { setGenericData(prev => ({ ...prev, precedents: { data: [], categories: [], loading: false } })); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-indigo-700 w-16 shrink-0 pt-0.5">Prec</span>
+                        <span className="text-sm text-gray-700">Precedents</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setDropdownOpen(false);
+                          setActiveView('compendium');
+                          setActiveSchedule(null);
+                          setGenericFilter(prev => ({ ...prev, compendium: '' }));
+                          if (!genericData['compendium']?.data?.length) {
+                            setGenericData(prev => ({ ...prev, compendium: { data: [], categories: [], loading: true } }));
+                            try {
+                              const res = await fetch('/api/tariff/compendium');
+                              const data: any[] = await res.json();
+                              const groups: {key: string, title: string, items: any[]}[] = [];
+                              const m = new Map<string, {key: string, title: string, items: any[]}>();
+                              for (const d of data) { const k = d.section || 'General'; let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
+                              setGenericData(prev => ({ ...prev, compendium: { data, categories: groups, loading: false } }));
+                            } catch { setGenericData(prev => ({ ...prev, compendium: { data: [], categories: [], loading: false } })); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-indigo-700 w-16 shrink-0 pt-0.5">Comp</span>
+                        <span className="text-sm text-gray-700">Compendium</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setDropdownOpen(false);
+                          setActiveView('tco');
+                          setActiveSchedule(null);
+                          setGenericFilter(prev => ({ ...prev, tco: '' }));
+                          if (!genericData['tco']?.data?.length) {
+                            setGenericData(prev => ({ ...prev, tco: { data: [], categories: [], loading: true } }));
+                            try {
+                              const res = await fetch('/api/tariff/tco');
+                              const data: any[] = await res.json();
+                              const groups: {key: string, title: string, items: any[]}[] = [];
+                              const m = new Map<string, {key: string, title: string, items: any[]}>();
+                              for (const d of data) { const k = d.category || 'General'; let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
+                              setGenericData(prev => ({ ...prev, tco: { data, categories: groups, loading: false } }));
+                            } catch { setGenericData(prev => ({ ...prev, tco: { data: [], categories: [], loading: false } })); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-indigo-700 w-16 shrink-0 pt-0.5">TCO</span>
+                        <span className="text-sm text-gray-700">Tariff Concession Orders</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setDropdownOpen(false);
+                          setActiveView('alpha-index');
+                          setActiveSchedule(null);
+                          setGenericFilter(prev => ({ ...prev, 'alpha-index': '' }));
+                          if (!genericData['alpha-index']?.data?.length) {
+                            setGenericData(prev => ({ ...prev, 'alpha-index': { data: [], categories: [], loading: true } }));
+                            try {
+                              const res = await fetch('/api/tariff/alpha-index');
+                              const data: any[] = await res.json();
+                              const groups: {key: string, title: string, items: any[]}[] = [];
+                              const m = new Map<string, {key: string, title: string, items: any[]}>();
+                              for (const d of data) { const k = (d.goods_description || 'A').charAt(0).toUpperCase(); let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
+                              groups.sort((a, b) => a.key.localeCompare(b.key));
+                              setGenericData(prev => ({ ...prev, 'alpha-index': { data, categories: groups, loading: false } }));
+                            } catch { setGenericData(prev => ({ ...prev, 'alpha-index': { data: [], categories: [], loading: false } })); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-indigo-700 w-16 shrink-0 pt-0.5">A-Z</span>
+                        <span className="text-sm text-gray-700">HS Alphabetical Index</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setDropdownOpen(false);
+                          setActiveView('hsen');
+                          setActiveSchedule(null);
+                          setGenericFilter(prev => ({ ...prev, hsen: '' }));
+                          if (!genericData['hsen']?.data?.length) {
+                            setGenericData(prev => ({ ...prev, hsen: { data: [], categories: [], loading: true } }));
+                            try {
+                              const res = await fetch('/api/tariff/hsen');
+                              const data: any[] = await res.json();
+                              const groups: {key: string, title: string, items: any[]}[] = [];
+                              const m = new Map<string, {key: string, title: string, items: any[]}>();
+                              for (const d of data) { const k = d.section || 'General'; let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
+                              setGenericData(prev => ({ ...prev, hsen: { data, categories: groups, loading: false } }));
+                            } catch { setGenericData(prev => ({ ...prev, hsen: { data: [], categories: [], loading: false } })); }
+                          }
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-indigo-700 w-16 shrink-0 pt-0.5">HSEN</span>
+                        <span className="text-sm text-gray-700">HS Explanatory Notes</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Dropdown 3: Compliance ── */}
             <div className="relative" ref={complianceDropdownRef}>
               <button
-                onClick={() => { setComplianceDropdownOpen(!complianceDropdownOpen); setDropdownOpen(false); setComplianceDropdownOpen(false); }}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                onClick={() => { setComplianceDropdownOpen(!complianceDropdownOpen); setDropdownOpen(false); setLegislationDropdownOpen(false); setReferenceDropdownOpen(false); }}
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors flex items-center gap-2"
               >
                 Compliance
                 <svg className={`w-4 h-4 transition-transform ${complianceDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1008,10 +1706,7 @@ export default function TariffSearchPage() {
               </button>
 
               {complianceDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[80vh] overflow-y-auto">
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Anti-Dumping</p>
-                  </div>
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[80vh] overflow-y-auto">
                   <button
                     onClick={async () => {
                       setComplianceDropdownOpen(false);
@@ -1041,10 +1736,10 @@ export default function TariffSearchPage() {
                         finally { setDumpLoading(false); }
                       }
                     }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                    className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
                   >
-                    <span className="font-mono text-xs font-bold text-orange-700 w-24 shrink-0 pt-0.5">Dumping</span>
-                    <span className="text-sm text-gray-700">Anti-Dumping & Countervailing Notices</span>
+                    <span className="font-mono text-xs font-bold text-orange-700 w-16 shrink-0 pt-0.5">Dumping</span>
+                    <span className="text-sm text-gray-700">Anti-Dumping Notices</span>
                   </button>
                   <button
                     onClick={async () => {
@@ -1066,17 +1761,11 @@ export default function TariffSearchPage() {
                         } catch { /* */ } finally { setAcnLoading(false); }
                       }
                     }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                    className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
                   >
-                    <span className="font-mono text-xs font-bold text-orange-700 w-24 shrink-0 pt-0.5">ACN</span>
-                    <span className="text-sm text-gray-700">Australian Customs Notices & Gazettes</span>
+                    <span className="font-mono text-xs font-bold text-orange-700 w-16 shrink-0 pt-0.5">ACN</span>
+                    <span className="text-sm text-gray-700">Australian Customs Notices</span>
                   </button>
-
-                  <div className="border-t border-gray-100 mx-3" />
-
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">AQIS / Biosecurity</p>
-                  </div>
                   <button
                     onClick={async () => {
                       setComplianceDropdownOpen(false);
@@ -1097,17 +1786,11 @@ export default function TariffSearchPage() {
                         } catch { /* */ } finally { setAqisLoading(false); }
                       }
                     }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                    className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
                   >
-                    <span className="font-mono text-xs font-bold text-teal-700 w-24 shrink-0 pt-0.5">AQIS</span>
-                    <span className="text-sm text-gray-700">AQIS Producer — Approved Establishments</span>
+                    <span className="font-mono text-xs font-bold text-teal-700 w-16 shrink-0 pt-0.5">AQIS</span>
+                    <span className="text-sm text-gray-700">AQIS Producer</span>
                   </button>
-
-                  <div className="border-t border-gray-100 mx-3" />
-
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Prohibited & Restricted Goods</p>
-                  </div>
                   <button
                     onClick={async () => {
                       setComplianceDropdownOpen(false);
@@ -1137,74 +1820,14 @@ export default function TariffSearchPage() {
                         finally { setChemsLoading(false); }
                       }
                     }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                    className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
                   >
-                    <span className="font-mono text-xs font-bold text-red-700 w-24 shrink-0 pt-0.5">Chem</span>
-                    <span className="text-sm text-gray-700">Chemical Index (CWC Schedules)</span>
+                    <span className="font-mono text-xs font-bold text-red-700 w-16 shrink-0 pt-0.5">Chem</span>
+                    <span className="text-sm text-gray-700">Chemical Index</span>
                   </button>
-                </div>
-              )}
-            </div>
-
-            {/* Reference Dropdown */}
-            <div className="relative" ref={legislationDropdownRef}>
-              <button
-                onClick={() => { setLegislationDropdownOpen(!legislationDropdownOpen); setDropdownOpen(false); setComplianceDropdownOpen(false); }}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                Reference
-                <svg className={`w-4 h-4 transition-transform ${legislationDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {legislationDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[80vh] overflow-y-auto">
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Export Classification</p>
-                  </div>
                   <button
                     onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('ahecc');
-                      setActiveSchedule(null);
-                      setAheccFilter('');
-                      setExpandedAheccSection(null);
-                      if (aheccData.length === 0) {
-                        setAheccLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/ahecc');
-                          const data: AHECCRow[] = await res.json();
-                          setAheccData(data);
-                          const groups: AHECCSectionGroup[] = [];
-                          const secMap = new Map<string, AHECCSectionGroup>();
-                          for (const r of data) {
-                            let group = secMap.get(r.section_number);
-                            if (!group) {
-                              group = { section_number: r.section_number, section_title: r.section_title, chapters: [] };
-                              secMap.set(r.section_number, group);
-                              groups.push(group);
-                            }
-                            group.chapters.push(r);
-                          }
-                          setAheccSections(groups);
-                        } catch { /* */ }
-                        finally { setAheccLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-teal-700 w-24 shrink-0 pt-0.5">AHECC</span>
-                    <span className="text-sm text-gray-700">Export Commodity Classification</span>
-                  </button>
-
-                  <div className="border-t border-gray-100 mx-3" />
-
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">ICS / Software Reference</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
+                      setComplianceDropdownOpen(false);
                       setActiveView('cpquestions');
                       setActiveSchedule(null);
                       setCpFilter('');
@@ -1231,14 +1854,66 @@ export default function TariffSearchPage() {
                         finally { setCpLoading(false); }
                       }
                     }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                    className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
                   >
-                    <span className="font-mono text-xs font-bold text-amber-700 w-24 shrink-0 pt-0.5">CP Q&apos;s</span>
-                    <span className="text-sm text-gray-700">Community Protection Questions</span>
+                    <span className="font-mono text-xs font-bold text-amber-700 w-16 shrink-0 pt-0.5">CP Q&apos;s</span>
+                    <span className="text-sm text-gray-700">CP Questions</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* ── Dropdown 4: Reference ── */}
+            <div className="relative" ref={referenceRef}>
+              <button
+                onClick={() => { setReferenceDropdownOpen(!referenceDropdownOpen); setDropdownOpen(false); setLegislationDropdownOpen(false); setComplianceDropdownOpen(false); }}
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors flex items-center gap-2"
+              >
+                Reference
+                <svg className={`w-4 h-4 transition-transform ${referenceDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {referenceDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[80vh] overflow-y-auto">
+                  <button
+                    onClick={async () => {
+                      setReferenceDropdownOpen(false);
+                      setActiveView('ahecc');
+                      setActiveSchedule(null);
+                      setAheccFilter('');
+                      setExpandedAheccSection(null);
+                      if (aheccData.length === 0) {
+                        setAheccLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/ahecc');
+                          const data: AHECCRow[] = await res.json();
+                          setAheccData(data);
+                          const groups: AHECCSectionGroup[] = [];
+                          const secMap = new Map<string, AHECCSectionGroup>();
+                          for (const r of data) {
+                            let group = secMap.get(r.section_number);
+                            if (!group) {
+                              group = { section_number: r.section_number, section_title: r.section_title, chapters: [] };
+                              secMap.set(r.section_number, group);
+                              groups.push(group);
+                            }
+                            group.chapters.push(r);
+                          }
+                          setAheccSections(groups);
+                        } catch { /* */ }
+                        finally { setAheccLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-teal-700 w-16 shrink-0 pt-0.5">AHECC</span>
+                    <span className="text-sm text-gray-700">AHECC Export Codes</span>
                   </button>
                   <button
                     onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
+                      setReferenceDropdownOpen(false);
                       setActiveView('reffiles');
                       setActiveSchedule(null);
                       setRefFilter('');
@@ -1265,705 +1940,20 @@ export default function TariffSearchPage() {
                         finally { setRefLoading(false); }
                       }
                     }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                    className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
                   >
-                    <span className="font-mono text-xs font-bold text-amber-700 w-24 shrink-0 pt-0.5">Ref Files</span>
-                    <span className="text-sm text-gray-700">ABF Software Reference Files</span>
+                    <span className="font-mono text-xs font-bold text-amber-700 w-16 shrink-0 pt-0.5">Ref Files</span>
+                    <span className="text-sm text-gray-700">ABF Reference Files</span>
                   </button>
-                  <div className="border-t border-gray-100 mx-3" />
-
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Acts</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('act');
-                      setActiveSchedule(null);
-                      setActFilter('');
-                      setExpandedPart(null);
-                      if (actSections.length === 0) {
-                        setActLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/act');
-                          const data: ActSectionRow[] = await res.json();
-                          setActSections(data);
-                          const groups: ActPartGroup[] = [];
-                          const partMap = new Map<string, ActPartGroup>();
-                          for (const s of data) {
-                            let group = partMap.get(s.part);
-                            if (!group) {
-                              group = { part: s.part, part_title: s.part_title, sections: [] };
-                              partMap.set(s.part, group);
-                              groups.push(group);
-                            }
-                            group.sections.push(s);
-                          }
-                          setActParts(groups);
-                        } catch { /* */ }
-                        finally { setActLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Act</span>
-                    <span className="text-sm text-gray-700">Customs Act 1901</span>
-                  </button>
-
-                  <div className="border-t border-gray-100 mx-3" />
-
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Regulations</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('regulations');
-                      setActiveSchedule(null);
-                      setRegsFilter('');
-                      setExpandedRegPart(null);
-                      if (regsData.length === 0) {
-                        setRegsLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/regulations');
-                          const data: RegulationRow[] = await res.json();
-                          setRegsData(data);
-                          const groups: RegPartGroup[] = [];
-                          const partMap = new Map<string, RegPartGroup>();
-                          for (const r of data) {
-                            const key = r.part || 'Other';
-                            let group = partMap.get(key);
-                            if (!group) {
-                              group = { part: key, part_title: r.part_title || key, regulations: [] };
-                              partMap.set(key, group);
-                              groups.push(group);
-                            }
-                            group.regulations.push(r);
-                          }
-                          setRegParts(groups);
-                        } catch { /* */ }
-                        finally { setRegsLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Regs</span>
-                    <span className="text-sm text-gray-700">Prohibited Imports Regulations 1956</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('intl-ob');
-                      setActiveSchedule(null);
-                      setIntlObFilter('');
-                      setExpandedIntlObPart(null);
-                      if (intlObData.length === 0) {
-                        setIntlObLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/intl-obligations');
-                          const data: IntlObRow[] = await res.json();
-                          setIntlObData(data);
-                          const groups: IntlObPartGroup[] = [];
-                          const m = new Map<string, IntlObPartGroup>();
-                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
-                          setIntlObParts(groups);
-                        } catch { /* */ } finally { setIntlObLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Intl Ob</span>
-                    <span className="text-sm text-gray-700">International Obligations Regulation 2015</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('pe-regs');
-                      setActiveSchedule(null);
-                      setPeFilter('');
-                      setExpandedPePart(null);
-                      if (peData.length === 0) {
-                        setPeLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/prohibited-exports');
-                          const data: IntlObRow[] = await res.json();
-                          setPeData(data);
-                          const groups: IntlObPartGroup[] = [];
-                          const m = new Map<string, IntlObPartGroup>();
-                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
-                          setPeParts(groups);
-                        } catch { /* */ } finally { setPeLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-red-700 w-24 shrink-0 pt-0.5">Exports</span>
-                    <span className="text-sm text-gray-700">Prohibited Exports Regulations 1958</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('customs-reg');
-                      setActiveSchedule(null);
-                      setCrFilter('');
-                      setExpandedCrPart(null);
-                      if (crData.length === 0) {
-                        setCrLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/customs-reg');
-                          const data: IntlObRow[] = await res.json();
-                          setCrData(data);
-                          const groups: IntlObPartGroup[] = [];
-                          const m = new Map<string, IntlObPartGroup>();
-                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
-                          setCrParts(groups);
-                        } catch { /* */ } finally { setCrLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Cust Reg</span>
-                    <span className="text-sm text-gray-700">Customs Regulation 2015</span>
-                  </button>
-
-                  <div className="border-t border-gray-100 mx-3" />
-
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tariff</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('ct-act');
-                      setActiveSchedule(null);
-                      setCtActFilter('');
-                      setExpandedCtActPart(null);
-                      if (ctActData.length === 0) {
-                        setCtActLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/customs-tariff-act');
-                          const data: TdActRow[] = await res.json();
-                          setCtActData(data);
-                          const groups: TdActPartGroup[] = [];
-                          const m = new Map<string, TdActPartGroup>();
-                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
-                          setCtActParts(groups);
-                        } catch { /* */ } finally { setCtActLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">Tariff Act</span>
-                    <span className="text-sm text-gray-700">Customs Tariff Act 1995</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('ct-regs');
-                      setActiveSchedule(null);
-                      setCtRegsFilter('');
-                      setExpandedCtRegsPart(null);
-                      if (ctRegsData.length === 0) {
-                        setCtRegsLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/customs-tariff-regs');
-                          const data: TdActRow[] = await res.json();
-                          setCtRegsData(data);
-                          const groups: TdActPartGroup[] = [];
-                          const m = new Map<string, TdActPartGroup>();
-                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
-                          setCtRegsParts(groups);
-                        } catch { /* */ } finally { setCtRegsLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">Tariff Reg</span>
-                    <span className="text-sm text-gray-700">Customs Tariff Regulations 2004</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('ad-act');
-                      setActiveSchedule(null);
-                      setAdActFilter('');
-                      setExpandedAdActPart(null);
-                      if (adActData.length === 0) {
-                        setAdActLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/anti-dumping-act');
-                          const data: TdActRow[] = await res.json();
-                          setAdActData(data);
-                          const groups: TdActPartGroup[] = [];
-                          const m = new Map<string, TdActPartGroup>();
-                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
-                          setAdActParts(groups);
-                        } catch { /* */ } finally { setAdActLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-orange-700 w-24 shrink-0 pt-0.5">Anti-Dump</span>
-                    <span className="text-sm text-gray-700">Customs Tariff (Anti-Dumping) Act 1975</span>
-                  </button>
-
-                  <div className="border-t border-gray-100 mx-3" />
-
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tax</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('gst-act');
-                      setActiveSchedule(null);
-                      setGstActFilter('');
-                      setExpandedGstActCh(null);
-                      if (gstActData.length === 0) {
-                        setGstActLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/gst-act');
-                          const data: GstActRow[] = await res.json();
-                          setGstActData(data);
-                          const groups: GstActChapterGroup[] = [];
-                          const chMap = new Map<string, GstActChapterGroup>();
-                          for (const d of data) {
-                            let g = chMap.get(d.chapter);
-                            if (!g) { g = { chapter: d.chapter, chapter_title: d.chapter_title, divisions: [] }; chMap.set(d.chapter, g); groups.push(g); }
-                            g.divisions.push(d);
-                          }
-                          setGstActChapters(groups);
-                        } catch { /* */ }
-                        finally { setGstActLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-green-700 w-24 shrink-0 pt-0.5">GST Act</span>
-                    <span className="text-sm text-gray-700">GST Act 1999</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('gst-regs');
-                      setActiveSchedule(null);
-                      setGstRegsFilter('');
-                      setExpandedGstRegsCh(null);
-                      if (gstRegsData.length === 0) {
-                        setGstRegsLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/gst-regs');
-                          const data: GstRegRow[] = await res.json();
-                          setGstRegsData(data);
-                          const groups: GstRegChapterGroup[] = [];
-                          const chMap = new Map<string, GstRegChapterGroup>();
-                          for (const d of data) {
-                            let g = chMap.get(d.chapter);
-                            if (!g) { g = { chapter: d.chapter, chapter_title: d.chapter_title, divisions: [] }; chMap.set(d.chapter, g); groups.push(g); }
-                            g.divisions.push(d);
-                          }
-                          setGstRegsChapters(groups);
-                        } catch { /* */ }
-                        finally { setGstRegsLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-green-700 w-24 shrink-0 pt-0.5">GST Regs</span>
-                    <span className="text-sm text-gray-700">GST Regulations 2019</span>
-                  </button>
-
-                  <div className="border-t border-gray-100 mx-3" />
-
-                  <div className="border-t border-gray-100 mx-3" />
-
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Biosecurity</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('bio-act');
-                      setActiveSchedule(null);
-                      setBioActFilter('');
-                      setExpandedBioActCh(null);
-                      if (bioActData.length === 0) {
-                        setBioActLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/biosecurity-act');
-                          const data: BioActRow[] = await res.json();
-                          setBioActData(data);
-                          const groups: BioChapterGroup[] = [];
-                          const m = new Map<string, BioChapterGroup>();
-                          for (const d of data) { let g = m.get(d.chapter); if (!g) { g = { chapter: d.chapter, chapter_title: d.chapter_title, entries: [] }; m.set(d.chapter, g); groups.push(g); } g.entries.push(d); }
-                          setBioActChapters(groups);
-                        } catch { /* */ } finally { setBioActLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-teal-700 w-24 shrink-0 pt-0.5">Bio Act</span>
-                    <span className="text-sm text-gray-700">Biosecurity Act 2015</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('bio-regs');
-                      setActiveSchedule(null);
-                      setBioRegsFilter('');
-                      setExpandedBioRegsCh(null);
-                      if (bioRegsData.length === 0) {
-                        setBioRegsLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/biosecurity-regs');
-                          const data: BioActRow[] = await res.json();
-                          setBioRegsData(data);
-                          const groups: BioChapterGroup[] = [];
-                          const m = new Map<string, BioChapterGroup>();
-                          for (const d of data) { let g = m.get(d.chapter); if (!g) { g = { chapter: d.chapter, chapter_title: d.chapter_title, entries: [] }; m.set(d.chapter, g); groups.push(g); } g.entries.push(d); }
-                          setBioRegsChapters(groups);
-                        } catch { /* */ } finally { setBioRegsLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-teal-700 w-24 shrink-0 pt-0.5">Bio Regs</span>
-                    <span className="text-sm text-gray-700">Biosecurity Regulation 2016</span>
-                  </button>
-
-                  <div className="border-t border-gray-100 mx-3" />
-
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Trade</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('td-act');
-                      setActiveSchedule(null);
-                      setTdActFilter('');
-                      setExpandedTdActPart(null);
-                      if (tdActData.length === 0) {
-                        setTdActLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/trade-desc-act');
-                          const data: TdActRow[] = await res.json();
-                          setTdActData(data);
-                          const groups: TdActPartGroup[] = [];
-                          const m = new Map<string, TdActPartGroup>();
-                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
-                          setTdActParts(groups);
-                        } catch { /* */ } finally { setTdActLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-purple-700 w-24 shrink-0 pt-0.5">TD Act</span>
-                    <span className="text-sm text-gray-700">Commerce (Trade Descriptions) Act 1905</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('td-regs');
-                      setActiveSchedule(null);
-                      setTdRegsFilter('');
-                      setExpandedTdRegsPart(null);
-                      if (tdRegsData.length === 0) {
-                        setTdRegsLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/trade-desc-regs');
-                          const data: TdRegRow[] = await res.json();
-                          setTdRegsData(data);
-                          const groups: TdRegPartGroup[] = [];
-                          const m = new Map<string, TdRegPartGroup>();
-                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
-                          setTdRegsParts(groups);
-                        } catch { /* */ } finally { setTdRegsLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-purple-700 w-24 shrink-0 pt-0.5">TD Regs</span>
-                    <span className="text-sm text-gray-700">Trade Descriptions Regulations 2016</span>
-                  </button>
-
-                  <div className="border-t border-gray-100 mx-3" />
-
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Illegal Logging</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('il-act');
-                      setActiveSchedule(null);
-                      setIlActFilter('');
-                      setExpandedIlActPart(null);
-                      if (ilActData.length === 0) {
-                        setIlActLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/illegal-logging-act');
-                          const data: TdActRow[] = await res.json();
-                          setIlActData(data);
-                          const groups: TdActPartGroup[] = [];
-                          const m = new Map<string, TdActPartGroup>();
-                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
-                          setIlActParts(groups);
-                        } catch { /* */ } finally { setIlActLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-green-700 w-24 shrink-0 pt-0.5">IL Act</span>
-                    <span className="text-sm text-gray-700">Illegal Logging Prohibition Act 2012</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('il-reg');
-                      setActiveSchedule(null);
-                      setIlRegFilter('');
-                      setExpandedIlRegPart(null);
-                      if (ilRegData.length === 0) {
-                        setIlRegLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/illegal-logging-reg');
-                          const data: IntlObRow[] = await res.json();
-                          setIlRegData(data);
-                          const groups: IntlObPartGroup[] = [];
-                          const m = new Map<string, IntlObPartGroup>();
-                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
-                          setIlRegParts(groups);
-                        } catch { /* */ } finally { setIlRegLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-green-700 w-24 shrink-0 pt-0.5">IL Reg</span>
-                    <span className="text-sm text-gray-700">Illegal Logging Prohibition Regulation 2012</span>
-                  </button>
-
-                  <div className="border-t border-gray-100 mx-3" />
-
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Food Safety</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('ifc-act');
-                      setActiveSchedule(null);
-                      setIfcActFilter('');
-                      setExpandedIfcActPart(null);
-                      if (ifcActData.length === 0) {
-                        setIfcActLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/imported-food-act');
-                          const data: TdActRow[] = await res.json();
-                          setIfcActData(data);
-                          const groups: TdActPartGroup[] = [];
-                          const m = new Map<string, TdActPartGroup>();
-                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
-                          setIfcActParts(groups);
-                        } catch { /* */ } finally { setIfcActLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-amber-700 w-24 shrink-0 pt-0.5">IFC Act</span>
-                    <span className="text-sm text-gray-700">Imported Food Control Act 1992</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('ifc-reg');
-                      setActiveSchedule(null);
-                      setIfcRegFilter('');
-                      setExpandedIfcRegPart(null);
-                      if (ifcRegData.length === 0) {
-                        setIfcRegLoading(true);
-                        try {
-                          const res = await fetch('/api/tariff/imported-food-reg');
-                          const data: IntlObRow[] = await res.json();
-                          setIfcRegData(data);
-                          const groups: IntlObPartGroup[] = [];
-                          const m = new Map<string, IntlObPartGroup>();
-                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
-                          setIfcRegParts(groups);
-                        } catch { /* */ } finally { setIfcRegLoading(false); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-amber-700 w-24 shrink-0 pt-0.5">IFC Reg</span>
-                    <span className="text-sm text-gray-700">Imported Food Control Regulation 2019</span>
-                  </button>
-
-                  <div className="border-t border-gray-100 mx-3" />
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Classification Tools</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('precedents');
-                      setActiveSchedule(null);
-                      setGenericFilter(prev => ({ ...prev, precedents: '' }));
-                      if (!genericData['precedents']?.data?.length) {
-                        setGenericData(prev => ({ ...prev, precedents: { data: [], categories: [], loading: true } }));
-                        try {
-                          const res = await fetch('/api/tariff/precedents');
-                          const data: any[] = await res.json();
-                          const groups: {key: string, title: string, items: any[]}[] = [];
-                          const m = new Map<string, {key: string, title: string, items: any[]}>();
-                          for (const d of data) { const k = d.category || 'General'; let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
-                          setGenericData(prev => ({ ...prev, precedents: { data, categories: groups, loading: false } }));
-                        } catch { setGenericData(prev => ({ ...prev, precedents: { data: [], categories: [], loading: false } })); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">Prec</span>
-                    <span className="text-sm text-gray-700">Tariff Precedents & Classification Rules</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('compendium');
-                      setActiveSchedule(null);
-                      setGenericFilter(prev => ({ ...prev, compendium: '' }));
-                      if (!genericData['compendium']?.data?.length) {
-                        setGenericData(prev => ({ ...prev, compendium: { data: [], categories: [], loading: true } }));
-                        try {
-                          const res = await fetch('/api/tariff/compendium');
-                          const data: any[] = await res.json();
-                          const groups: {key: string, title: string, items: any[]}[] = [];
-                          const m = new Map<string, {key: string, title: string, items: any[]}>();
-                          for (const d of data) { const k = d.section || 'General'; let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
-                          setGenericData(prev => ({ ...prev, compendium: { data, categories: groups, loading: false } }));
-                        } catch { setGenericData(prev => ({ ...prev, compendium: { data: [], categories: [], loading: false } })); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">Comp</span>
-                    <span className="text-sm text-gray-700">Compendium of Classification Opinions</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('tco');
-                      setActiveSchedule(null);
-                      setGenericFilter(prev => ({ ...prev, tco: '' }));
-                      if (!genericData['tco']?.data?.length) {
-                        setGenericData(prev => ({ ...prev, tco: { data: [], categories: [], loading: true } }));
-                        try {
-                          const res = await fetch('/api/tariff/tco');
-                          const data: any[] = await res.json();
-                          const groups: {key: string, title: string, items: any[]}[] = [];
-                          const m = new Map<string, {key: string, title: string, items: any[]}>();
-                          for (const d of data) { const k = d.category || 'General'; let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
-                          setGenericData(prev => ({ ...prev, tco: { data, categories: groups, loading: false } }));
-                        } catch { setGenericData(prev => ({ ...prev, tco: { data: [], categories: [], loading: false } })); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">TCO</span>
-                    <span className="text-sm text-gray-700">Tariff Concession Orders (TCOs)</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('alpha-index');
-                      setActiveSchedule(null);
-                      setGenericFilter(prev => ({ ...prev, 'alpha-index': '' }));
-                      if (!genericData['alpha-index']?.data?.length) {
-                        setGenericData(prev => ({ ...prev, 'alpha-index': { data: [], categories: [], loading: true } }));
-                        try {
-                          const res = await fetch('/api/tariff/alpha-index');
-                          const data: any[] = await res.json();
-                          const groups: {key: string, title: string, items: any[]}[] = [];
-                          const m = new Map<string, {key: string, title: string, items: any[]}>();
-                          for (const d of data) { const k = (d.goods_description || 'A').charAt(0).toUpperCase(); let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
-                          groups.sort((a, b) => a.key.localeCompare(b.key));
-                          setGenericData(prev => ({ ...prev, 'alpha-index': { data, categories: groups, loading: false } }));
-                        } catch { setGenericData(prev => ({ ...prev, 'alpha-index': { data: [], categories: [], loading: false } })); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">A-Z</span>
-                    <span className="text-sm text-gray-700">HS Alphabetical Index</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
-                      setActiveView('hsen');
-                      setActiveSchedule(null);
-                      setGenericFilter(prev => ({ ...prev, hsen: '' }));
-                      if (!genericData['hsen']?.data?.length) {
-                        setGenericData(prev => ({ ...prev, hsen: { data: [], categories: [], loading: true } }));
-                        try {
-                          const res = await fetch('/api/tariff/hsen');
-                          const data: any[] = await res.json();
-                          const groups: {key: string, title: string, items: any[]}[] = [];
-                          const m = new Map<string, {key: string, title: string, items: any[]}>();
-                          for (const d of data) { const k = d.section || 'General'; let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
-                          setGenericData(prev => ({ ...prev, hsen: { data, categories: groups, loading: false } }));
-                        } catch { setGenericData(prev => ({ ...prev, hsen: { data: [], categories: [], loading: false } })); }
-                      }
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">HSEN</span>
-                    <span className="text-sm text-gray-700">HS Explanatory Notes (HSEN)</span>
-                  </button>
-
                 </div>
               )}
             </div>
 
-            {/* Browse Schedules Dropdown */}
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => { setDropdownOpen(!dropdownOpen); setComplianceDropdownOpen(false); setComplianceDropdownOpen(false); }}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                Browse Schedules
-                <svg className={`w-4 h-4 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[80vh] overflow-y-auto">
-                  {/* Main Schedules */}
-                <div className="px-3 pt-3 pb-1">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Main Schedules</p>
-                </div>
-                {SCHEDULES.filter(s => ['1','2','3','4'].includes(s.id)).map(s => (
-                  <ScheduleMenuItem key={s.id} schedule={s} onClick={() => selectSchedule(s)} />
-                ))}
-
-                <div className="border-t border-gray-100 mx-3" />
-
-                {/* FTA Exclusion Schedules */}
-                <div className="px-3 pt-3 pb-1">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">FTA Exclusion Schedules</p>
-                </div>
-                {SCHEDULES.filter(s => !['1','2','3','4'].includes(s.id)).map(s => (
-                  <ScheduleMenuItem key={s.id} schedule={s} onClick={() => selectSchedule(s)} />
-                ))}
-
-              </div>
-            )}
           </div>
-        </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-6">
+      <main className="max-w-[1440px] mx-auto px-6 py-6">
         {activeView === 'search' ? (
           // ── Search View ──────────────────────────────────────────
           <>
@@ -3772,9 +3762,9 @@ function ScheduleMenuItem({ schedule, onClick }: { schedule: ScheduleInfo; onCli
   return (
     <button
       onClick={onClick}
-      className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+      className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
     >
-      <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">{schedule.label}</span>
+      <span className="font-mono text-xs font-bold text-blue-700 w-16 shrink-0 pt-0.5">{schedule.label}</span>
       <span className="text-sm text-gray-700">{schedule.title}</span>
       {schedule.dataSource === 'external' && (
         <ExternalIcon className="shrink-0 mt-0.5 ml-auto" />
