@@ -70,7 +70,8 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> =
 };
 
 const SOURCE_CATEGORIES: Record<string, string[]> = {
-  'Tariff Data': ['schedule1', 'schedule3', 'fta_schedules'],
+  'ABF Reference Files (Official Data)': ['hs_descriptions', 'schedule3', 'exchange_rates', 'instruments', 'preference_schemes'],
+  'Tariff Schedules (1-16)': ['schedule1', 'schedule2', 'fta_schedules'],
   'Legislation': ['customs_act', 'customs_tariff_act', 'gst_act', 'customs_regs', 'anti_dumping_act', 'prohibited_imports', 'prohibited_exports'],
   'Trade & Compliance': ['dumping_notices', 'customs_notices', 'trade_desc', 'biosecurity', 'illegal_logging', 'imported_food'],
   'Reference': ['chemical_index', 'ahecc'],
@@ -186,6 +187,27 @@ export default function AdminPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Data Pipeline Info */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <div className="text-sm text-blue-800">
+              <p className="font-semibold mb-1">Data Pipeline</p>
+              <div className="grid grid-cols-3 gap-4 text-xs text-blue-700">
+                <div>
+                  <span className="font-medium">Layer 1 — Descriptions:</span> GitHub/UN Comtrade HS dataset (6,939 codes, monthly)
+                </div>
+                <div>
+                  <span className="font-medium">Layer 2 — Codes + Rates:</span> ABF reference files TRFCSNAP + TFRPSNAP (8,021 codes, daily)
+                </div>
+                <div>
+                  <span className="font-medium">Layer 3 — Schedules:</span> ABF website HTML scrape for FTA exclusions (19 schedules)
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-500">
