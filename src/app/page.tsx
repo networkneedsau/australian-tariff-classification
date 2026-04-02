@@ -369,7 +369,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs' | 'ad-act' | 'il-act' | 'il-reg' | 'ifc-act' | 'ifc-reg' | 'acn' | 'aqis'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs' | 'ad-act' | 'il-act' | 'il-reg' | 'ifc-act' | 'ifc-reg' | 'acn' | 'aqis' | 'precedents' | 'compendium' | 'tco' | 'alpha-index' | 'hsen'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -508,6 +508,9 @@ export default function TariffSearchPage() {
   const [expandedIfcRegPart, setExpandedIfcRegPart] = useState<string | null>(null);
   const [ifcRegLoading, setIfcRegLoading] = useState(false);
 
+  // Precedents, Compendium, TCO, Alpha Index, HSEN data
+  const [genericData, setGenericData] = useState<Record<string, {data: any[], categories: {key: string, title: string, items: any[]}[], loading: boolean}>>({});
+
   // Dumping notices data
   const [dumpData, setDumpData] = useState<DumpingRow[]>([]);
   const [dumpCategories, setDumpCategories] = useState<DumpCategoryGroup[]>([]);
@@ -550,6 +553,7 @@ export default function TariffSearchPage() {
   const [ilRegFilter, setIlRegFilter] = useState('');
   const [ifcActFilter, setIfcActFilter] = useState('');
   const [ifcRegFilter, setIfcRegFilter] = useState('');
+  const [genericFilter, setGenericFilter] = useState<Record<string, string>>({});
   const [acnFilter, setAcnFilter] = useState('');
   const [aqisFilter, setAqisFilter] = useState('');
   const [gstActFilter, setGstActFilter] = useState('');
@@ -959,6 +963,16 @@ export default function TariffSearchPage() {
                                                 ? 'Imported Food Control Act 1992'
                                                 : activeView === 'ifc-reg'
                                                   ? 'Imported Food Control Regulation 2019'
+                                                  : activeView === 'precedents'
+                                                    ? 'Tariff Precedents & Classification Rules'
+                                                    : activeView === 'compendium'
+                                                      ? 'Compendium of Classification Opinions'
+                                                      : activeView === 'tco'
+                                                        ? 'Tariff Concession Orders (TCOs)'
+                                                        : activeView === 'alpha-index'
+                                                          ? 'HS Alphabetical Index'
+                                                          : activeView === 'hsen'
+                                                            ? 'HS Explanatory Notes (HSEN)'
                                                   : activeView === 'chemicals'
                     ? 'Chemical Index — CWC Scheduled Chemicals'
                     : activeView === 'ahecc'
@@ -1783,6 +1797,127 @@ export default function TariffSearchPage() {
                   >
                     <span className="font-mono text-xs font-bold text-amber-700 w-24 shrink-0 pt-0.5">IFC Reg</span>
                     <span className="text-sm text-gray-700">Imported Food Control Regulation 2019</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 mx-3" />
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Classification Tools</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
+                      setActiveView('precedents');
+                      setActiveSchedule(null);
+                      setGenericFilter(prev => ({ ...prev, precedents: '' }));
+                      if (!genericData['precedents']?.data?.length) {
+                        setGenericData(prev => ({ ...prev, precedents: { data: [], categories: [], loading: true } }));
+                        try {
+                          const res = await fetch('/api/tariff/precedents');
+                          const data: any[] = await res.json();
+                          const groups: {key: string, title: string, items: any[]}[] = [];
+                          const m = new Map<string, {key: string, title: string, items: any[]}>();
+                          for (const d of data) { const k = d.category || 'General'; let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
+                          setGenericData(prev => ({ ...prev, precedents: { data, categories: groups, loading: false } }));
+                        } catch { setGenericData(prev => ({ ...prev, precedents: { data: [], categories: [], loading: false } })); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">Prec</span>
+                    <span className="text-sm text-gray-700">Tariff Precedents & Classification Rules</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
+                      setActiveView('compendium');
+                      setActiveSchedule(null);
+                      setGenericFilter(prev => ({ ...prev, compendium: '' }));
+                      if (!genericData['compendium']?.data?.length) {
+                        setGenericData(prev => ({ ...prev, compendium: { data: [], categories: [], loading: true } }));
+                        try {
+                          const res = await fetch('/api/tariff/compendium');
+                          const data: any[] = await res.json();
+                          const groups: {key: string, title: string, items: any[]}[] = [];
+                          const m = new Map<string, {key: string, title: string, items: any[]}>();
+                          for (const d of data) { const k = d.section || 'General'; let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
+                          setGenericData(prev => ({ ...prev, compendium: { data, categories: groups, loading: false } }));
+                        } catch { setGenericData(prev => ({ ...prev, compendium: { data: [], categories: [], loading: false } })); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">Comp</span>
+                    <span className="text-sm text-gray-700">Compendium of Classification Opinions</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
+                      setActiveView('tco');
+                      setActiveSchedule(null);
+                      setGenericFilter(prev => ({ ...prev, tco: '' }));
+                      if (!genericData['tco']?.data?.length) {
+                        setGenericData(prev => ({ ...prev, tco: { data: [], categories: [], loading: true } }));
+                        try {
+                          const res = await fetch('/api/tariff/tco');
+                          const data: any[] = await res.json();
+                          const groups: {key: string, title: string, items: any[]}[] = [];
+                          const m = new Map<string, {key: string, title: string, items: any[]}>();
+                          for (const d of data) { const k = d.category || 'General'; let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
+                          setGenericData(prev => ({ ...prev, tco: { data, categories: groups, loading: false } }));
+                        } catch { setGenericData(prev => ({ ...prev, tco: { data: [], categories: [], loading: false } })); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">TCO</span>
+                    <span className="text-sm text-gray-700">Tariff Concession Orders (TCOs)</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
+                      setActiveView('alpha-index');
+                      setActiveSchedule(null);
+                      setGenericFilter(prev => ({ ...prev, 'alpha-index': '' }));
+                      if (!genericData['alpha-index']?.data?.length) {
+                        setGenericData(prev => ({ ...prev, 'alpha-index': { data: [], categories: [], loading: true } }));
+                        try {
+                          const res = await fetch('/api/tariff/alpha-index');
+                          const data: any[] = await res.json();
+                          const groups: {key: string, title: string, items: any[]}[] = [];
+                          const m = new Map<string, {key: string, title: string, items: any[]}>();
+                          for (const d of data) { const k = (d.goods_description || 'A').charAt(0).toUpperCase(); let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
+                          groups.sort((a, b) => a.key.localeCompare(b.key));
+                          setGenericData(prev => ({ ...prev, 'alpha-index': { data, categories: groups, loading: false } }));
+                        } catch { setGenericData(prev => ({ ...prev, 'alpha-index': { data: [], categories: [], loading: false } })); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">A-Z</span>
+                    <span className="text-sm text-gray-700">HS Alphabetical Index</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
+                      setActiveView('hsen');
+                      setActiveSchedule(null);
+                      setGenericFilter(prev => ({ ...prev, hsen: '' }));
+                      if (!genericData['hsen']?.data?.length) {
+                        setGenericData(prev => ({ ...prev, hsen: { data: [], categories: [], loading: true } }));
+                        try {
+                          const res = await fetch('/api/tariff/hsen');
+                          const data: any[] = await res.json();
+                          const groups: {key: string, title: string, items: any[]}[] = [];
+                          const m = new Map<string, {key: string, title: string, items: any[]}>();
+                          for (const d of data) { const k = d.section || 'General'; let g = m.get(k); if (!g) { g = { key: k, title: k, items: [] }; m.set(k, g); groups.push(g); } g.items.push(d); }
+                          setGenericData(prev => ({ ...prev, hsen: { data, categories: groups, loading: false } }));
+                        } catch { setGenericData(prev => ({ ...prev, hsen: { data: [], categories: [], loading: false } })); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">HSEN</span>
+                    <span className="text-sm text-gray-700">HS Explanatory Notes (HSEN)</span>
                   </button>
 
                 </div>
@@ -2944,6 +3079,150 @@ export default function TariffSearchPage() {
                             {item.description && <p className="text-xs text-gray-600 mb-1">{item.description}</p>}
                             {item.requirements && <p className="text-xs text-gray-500"><span className="font-medium">Requirements:</span> {item.requirements}</p>}
                             {item.notes && <p className="text-xs text-gray-400 mt-1 italic">{item.notes}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (activeView === 'precedents' || activeView === 'compendium' || activeView === 'tco' || activeView === 'alpha-index' || activeView === 'hsen') ? (
+          // ── Generic Classification Tools ──────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                Back to Search
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">
+                {activeView === 'precedents' ? 'Tariff Precedents & Classification Rules'
+                  : activeView === 'compendium' ? 'Compendium of Classification Opinions'
+                  : activeView === 'tco' ? 'Tariff Concession Orders (TCOs)'
+                  : activeView === 'alpha-index' ? 'HS Alphabetical Index'
+                  : 'HS Explanatory Notes (HSEN)'}
+              </h2>
+              <p className="text-xs text-gray-500 mb-3">
+                {activeView === 'precedents' ? 'Binding classification precedents and rules used by the ABF for tariff determination'
+                  : activeView === 'compendium' ? 'WCO classification opinions for consistent HS code interpretation worldwide'
+                  : activeView === 'tco' ? 'Concession orders granting duty-free or reduced-duty import of specific goods'
+                  : activeView === 'alpha-index' ? 'Alphabetical listing of goods mapped to HS codes for quick lookup'
+                  : 'Detailed explanatory notes supporting HS classification decisions'}
+              </p>
+              <input
+                type="text"
+                value={genericFilter[activeView] || ''}
+                onChange={(e) => setGenericFilter(prev => ({ ...prev, [activeView]: e.target.value }))}
+                placeholder="Search..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              />
+              <p className="text-xs text-gray-400 mt-2">
+                {(() => {
+                  const gd = genericData[activeView];
+                  if (!gd) return '0 items';
+                  const filter = (genericFilter[activeView] || '').toLowerCase();
+                  const total = gd.data.length;
+                  if (!filter) return `${total} items`;
+                  const filtered = gd.categories.reduce((s, c) => s + c.items.filter((item: any) => JSON.stringify(item).toLowerCase().includes(filter)).length, 0);
+                  return `${filtered} of ${total} items`;
+                })()}
+              </p>
+            </div>
+
+            {genericData[activeView]?.loading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                <p className="text-gray-500 mt-4">Loading...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {(genericData[activeView]?.categories || [])
+                  .map(cg => {
+                    const filter = (genericFilter[activeView] || '').toLowerCase();
+                    const filteredItems = filter ? cg.items.filter((item: any) => JSON.stringify(item).toLowerCase().includes(filter)) : cg.items;
+                    if (filter && filteredItems.length === 0) return null;
+                    return { ...cg, items: filteredItems };
+                  })
+                  .filter(Boolean)
+                  .map((cg: any) => (
+                  <div key={cg.key} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button
+                      onClick={() => setGenericFilter(prev => ({ ...prev, [`_expanded_${activeView}`]: prev[`_expanded_${activeView}`] === cg.key ? '' : cg.key }))}
+                      className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-indigo-50 transition-colors"
+                    >
+                      <div>
+                        <span className="font-semibold text-indigo-800">{cg.title}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{cg.items.length} items</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${genericFilter[`_expanded_${activeView}`] === cg.key ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+                    {genericFilter[`_expanded_${activeView}`] === cg.key && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {cg.items.map((item: any, idx: number) => (
+                          <div key={item.id || idx} className="px-5 py-3 text-sm">
+                            {activeView === 'precedents' && (
+                              <>
+                                <div className="flex items-start justify-between mb-1">
+                                  <span className="font-medium text-gray-800">{item.goods_description}</span>
+                                  {item.tariff_classification && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded shrink-0 ml-2">{item.tariff_classification}</span>}
+                                </div>
+                                {item.reasoning && <p className="text-xs text-gray-600 mb-1"><span className="font-medium">Reasoning:</span> {item.reasoning}</p>}
+                                {item.scope && <p className="text-xs text-gray-500"><span className="font-medium">Scope:</span> {item.scope}</p>}
+                                {item.chapter && <p className="text-xs text-gray-400 mt-1">Chapter: {item.chapter}</p>}
+                              </>
+                            )}
+                            {activeView === 'compendium' && (
+                              <>
+                                <div className="flex items-start justify-between mb-1">
+                                  <span className="font-medium text-gray-800">{item.section_title}</span>
+                                  {item.chapters && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded shrink-0 ml-2">{item.chapters}</span>}
+                                </div>
+                                {item.example_opinion && <p className="text-xs text-gray-600 mb-1"><span className="font-medium">Opinion:</span> {item.example_opinion}</p>}
+                                {item.example_code && <p className="text-xs text-gray-500"><span className="font-medium">Code:</span> {item.example_code}</p>}
+                                {item.example_reasoning && <p className="text-xs text-gray-500"><span className="font-medium">Reasoning:</span> {item.example_reasoning}</p>}
+                                {item.notes && <p className="text-xs text-gray-400 mt-1 italic">{item.notes}</p>}
+                              </>
+                            )}
+                            {activeView === 'tco' && (
+                              <>
+                                <div className="flex items-start justify-between mb-1">
+                                  <span className="font-medium text-gray-800">{item.item_title}</span>
+                                  {item.reference && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded shrink-0 ml-2">{item.reference}</span>}
+                                </div>
+                                {item.description && <p className="text-xs text-gray-600 mb-1">{item.description}</p>}
+                                {item.detail && <p className="text-xs text-gray-500"><span className="font-medium">Detail:</span> {item.detail}</p>}
+                                {item.notes && <p className="text-xs text-gray-400 mt-1 italic">{item.notes}</p>}
+                              </>
+                            )}
+                            {activeView === 'alpha-index' && (
+                              <>
+                                <div className="flex items-start justify-between mb-1">
+                                  <span className="font-medium text-gray-800">{item.goods_description}</span>
+                                  {item.hs_code && <span className="font-mono text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded shrink-0 ml-2">{item.hs_code}</span>}
+                                </div>
+                                {item.chapter && <p className="text-xs text-gray-500">Chapter: {item.chapter}</p>}
+                                {item.section && <p className="text-xs text-gray-400">Section: {item.section}</p>}
+                              </>
+                            )}
+                            {activeView === 'hsen' && (
+                              <>
+                                <div className="flex items-start justify-between mb-1">
+                                  <span className="font-medium text-gray-800">{item.section_title}</span>
+                                  {item.chapters && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded shrink-0 ml-2">{item.chapters}</span>}
+                                </div>
+                                {item.scope && <p className="text-xs text-gray-600 mb-1"><span className="font-medium">Scope:</span> {item.scope}</p>}
+                                {item.key_notes && <p className="text-xs text-gray-500"><span className="font-medium">Key Notes:</span> {item.key_notes}</p>}
+                                {item.classification_guidance && <p className="text-xs text-gray-500"><span className="font-medium">Guidance:</span> {item.classification_guidance}</p>}
+                              </>
+                            )}
                           </div>
                         ))}
                       </div>
