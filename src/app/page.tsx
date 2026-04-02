@@ -369,7 +369,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs' | 'ad-act' | 'il-act' | 'il-reg' | 'ifc-act' | 'ifc-reg' | 'acn' | 'aqis' | 'precedents' | 'compendium' | 'tco' | 'alpha-index' | 'hsen'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs' | 'ad-act' | 'il-act' | 'il-reg' | 'ifc-act' | 'ifc-reg' | 'acn' | 'aqis' | 'precedents' | 'compendium' | 'tco' | 'alpha-index' | 'hsen' | 'cbp-rulings'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -978,6 +978,8 @@ export default function TariffSearchPage() {
                                                           ? 'HS Alphabetical Index'
                                                           : activeView === 'hsen'
                                                             ? 'HS Explanatory Notes (HSEN)'
+                                                            : activeView === 'cbp-rulings'
+                                                              ? 'US CBP CROSS — Customs Rulings'
                                                   : activeView === 'chemicals'
                     ? 'Chemical Index — CWC Scheduled Chemicals'
                     : activeView === 'ahecc'
@@ -1858,6 +1860,36 @@ export default function TariffSearchPage() {
                   >
                     <span className="font-mono text-xs font-bold text-amber-700 w-16 shrink-0 pt-0.5">CP Q&apos;s</span>
                     <span className="text-sm text-gray-700">CP Questions</span>
+                  </button>
+                  <div className="border-t border-gray-100 mx-3" />
+                  <div className="px-3 pt-2 pb-1">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">International</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false);
+                      setActiveView('cbp-rulings');
+                      setActiveSchedule(null);
+                      if (!genericData['cbp-rulings']) {
+                        setGenericData(prev => ({ ...prev, 'cbp-rulings': { data: [], categories: [], loading: true } }));
+                        try {
+                          const res = await fetch('/api/tariff/cbp-rulings');
+                          const data = await res.json();
+                          const catMap = new Map<string, { key: string; title: string; items: typeof data }>();
+                          const cats: { key: string; title: string; items: typeof data }[] = [];
+                          for (const d of data) {
+                            let g = catMap.get(d.category);
+                            if (!g) { g = { key: d.category, title: d.category_title, items: [] }; catMap.set(d.category, g); cats.push(g); }
+                            g.items.push(d);
+                          }
+                          setGenericData(prev => ({ ...prev, 'cbp-rulings': { data, categories: cats, loading: false } }));
+                        } catch { setGenericData(prev => ({ ...prev, 'cbp-rulings': { data: [], categories: [], loading: false } })); }
+                      }
+                    }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-red-700 w-16 shrink-0 pt-0.5">CBP</span>
+                    <span className="text-sm text-gray-700">US CBP CROSS Rulings</span>
                   </button>
                 </div>
               )}
@@ -3078,7 +3110,7 @@ export default function TariffSearchPage() {
               </div>
             )}
           </div>
-        ) : (activeView === 'precedents' || activeView === 'compendium' || activeView === 'tco' || activeView === 'alpha-index' || activeView === 'hsen') ? (
+        ) : (activeView === 'precedents' || activeView === 'compendium' || activeView === 'tco' || activeView === 'alpha-index' || activeView === 'hsen' || activeView === 'cbp-rulings') ? (
           // ── Generic Classification Tools ──────────────────────
           <div>
             <div className="flex items-center justify-between mb-6">
