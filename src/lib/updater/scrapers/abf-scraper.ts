@@ -165,11 +165,14 @@ export async function scrapeSchedule3Chapter(
       const cells = $(tr).find('td, th');
       if (cells.length < 2) return;
 
-      // Check if this is a header row (th cells or dark background)
-      const isHeader = $(tr).find('th').length > 0;
-      if (isHeader) return;
+      // Skip the actual header row (all cells are <th>, 0 <td>)
+      // Data rows have 1 <th scope="row"> for the code + 5 <td> cells
+      const tdCount = $(tr).find('td').length;
+      const thCount = $(tr).find('th').length;
+      if (tdCount === 0 && thCount > 0) return; // pure header row
 
-      const firstCell = $(cells[0]).text().replace(/[\u200B-\u200D\uFEFF\u00AD\u2605]/g, '').trim();
+      // The first cell is <th scope="row"> containing the reference number
+      const firstCell = $(cells[0]).text().replace(/[\u200B-\u200D\uFEFF\u00AD\u2605\u2606]/g, '').trim();
 
       // Skip empty rows
       if (!firstCell) return;
