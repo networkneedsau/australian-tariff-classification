@@ -1,41 +1,35 @@
-import type Database from 'better-sqlite3';
-import { BaseUpdater, type ApplyResult } from '../base-updater';
-import { scrapeActSections, type ActSection } from '../scrapers/legislation-scraper';
+import { LegislationEpubUpdater } from './legislation-epub-updater';
 
 /**
- * A New Tax System (Goods and Services Tax) Act 1999 updater.
+ * A New Tax System (Goods and Services Tax) Act 1999 updater — EPUB-based.
+ * Series ID: C2004A00446
+ *
+ * The gst_act table uses chapter/chapter_title as its primary grouping,
+ * with division/division_title. The EPUB parser maps Part -> chapter and
+ * Division -> division for this Act.
  */
-export class GstActUpdater extends BaseUpdater {
-  readonly sourceId = 'gst_act';
-  readonly sourceName = 'GST Act 1999';
-  readonly defaultCron = '0 3 1 * *';
-  readonly targetTables = ['gst_act'];
-
-  async fetch(): Promise<ActSection[]> {
-    return scrapeActSections('Details/C2004A00446');
-  }
-
-  apply(db: Database.Database, data: ActSection[]): ApplyResult {
-    // Safety: don't delete existing data if scrape returned nothing
-    if (data.length === 0) {
-      return { added: 0, removed: 0, modified: 0, total: 0 };
-    }
-
-    const table = 'gst_act';
-    db.prepare(`DELETE FROM ${table}`).run();
-
-    const insert = db.prepare(
-      `INSERT INTO ${table} (chapter, chapter_title, part, part_title, division, division_title, content)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    );
-
-    for (const row of data) {
-      // Map scraped part as chapter if no separate chapter data available
-      insert.run(row.part, row.part_title, row.part, row.part_title, '', '', row.content || '');
-    }
-
-    try { db.exec(`INSERT INTO gst_act_fts(gst_act_fts) VALUES('rebuild')`); } catch {}
-
-    return { added: data.length, removed: 0, modified: 0, total: data.length };
+export class GstActUpdater extends LegislationEpubUpdater {
+  constructor() {
+    super({
+      seriesId: 'C2004A00446',
+      tableName: 'gst_act',
+      sourceId: 'gst_act',
+      sourceName: 'GST Act 1999',
+      defaultCron: '0 3 1 * *',
+      columns: {
+        partColumn: 'chapter',
+        partTitleColumn: 'chapter_title',
+        divisionColumn: 'part',
+        divisionTitleColumn: 'part_title',
+        subdivisionColumn: null,
+        subdivisionTitleColumn: null,
+        sectionColumn: 'division',
+        titleColumn: 'division_title',
+        contentColumn: 'content',
+        categoryColumn: null,
+        sectionRangeColumn: null,
+      },
+      ftsTable: 'gst_act_fts',
+    });
   }
 }
