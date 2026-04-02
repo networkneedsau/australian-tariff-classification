@@ -165,6 +165,20 @@ export function getDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_roo_fta ON roo_rules(fta_schedule);
     CREATE INDEX IF NOT EXISTS idx_roo_hs ON roo_rules(hs_code_start);
 
+    -- International HS code descriptions (from GitHub/UN Comtrade)
+    CREATE TABLE IF NOT EXISTS hs_descriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      section TEXT,
+      hs_code TEXT NOT NULL,
+      hs_code_formatted TEXT,
+      description TEXT NOT NULL,
+      parent_code TEXT,
+      level INTEGER NOT NULL DEFAULT 6,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_hs_desc_code ON hs_descriptions(hs_code);
+    CREATE INDEX IF NOT EXISTS idx_hs_desc_level ON hs_descriptions(level);
+
     -- Preference schemes (FTA / trade agreements)
     CREATE TABLE IF NOT EXISTS preference_schemes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

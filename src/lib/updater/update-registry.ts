@@ -5,6 +5,7 @@ import { logInfo, logError } from './update-logger';
 // ---------------------------------------------------------------------------
 // Import concrete updater classes
 // ---------------------------------------------------------------------------
+import { HsDescriptionsUpdater } from './updaters/hs-descriptions-updater';
 import { Schedule1Updater } from './updaters/schedule1-updater';
 import { Schedule2Updater } from './updaters/schedule2-updater';
 import { Schedule3Updater } from './updaters/schedule3-updater';
@@ -46,6 +47,7 @@ export function getUpdaterRegistry(): Map<string, BaseUpdater> {
 
   // ---- register all 21 updaters ----
   const updaters: BaseUpdater[] = [
+    new HsDescriptionsUpdater(),     // 0.  International HS descriptions (run first)
     new Schedule1Updater(),          // 1.  Countries
     new Schedule2Updater(),          // 2.  Interpretative Rules
     new Schedule3Updater(),          // 3.  Tariff Classifications

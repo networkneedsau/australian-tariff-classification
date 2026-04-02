@@ -326,7 +326,19 @@ export class Schedule3Updater extends BaseUpdater {
 
     if (!hasExistingData) {
       // No existing data and no scrape — insert codes with rates only
-      logInfo(SRC, 'No existing data and no scrape — inserting codes from TRFCSNAP with TFRPSNAP rates');
+      logInfo(SRC, 'No existing data and no scrape — inserting codes from TRFCSNAP with TFRPSNAP rates + HS descriptions');
+
+      // Load HS descriptions for gap-filling
+      const hsDescMap = new Map<string, { description: string; section: string }>();
+      try {
+        const hsRows = db.prepare('SELECT hs_code, description, section FROM hs_descriptions').all() as any[];
+        for (const row of hsRows) {
+          hsDescMap.set(row.hs_code, { description: row.description, section: row.section || '' });
+        }
+        logInfo(SRC, `Loaded ${hsDescMap.size} HS descriptions for gap-filling`);
+      } catch {
+        logWarn(SRC, 'hs_descriptions table not available — run hs_descriptions updater first for descriptions');
+      }
 
       const insert = db.prepare(
         `INSERT INTO tariff_classifications
@@ -336,6 +348,7 @@ export class Schedule3Updater extends BaseUpdater {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
 
+      let descFilled = 0;
       for (const trfc of trfcCodes) {
         const refRate = tfrpRates.get(trfc.rawCode);
         const chapterNum = parseInt(trfc.rawCode.slice(0, 2)) || 0;
@@ -351,16 +364,38 @@ export class Schedule3Updater extends BaseUpdater {
           isFree = refRate.calcType === 'FREE' || refRate.customsValueRate === 0;
         }
 
+        // Look up description from HS data (try exact 8-digit, then 6-digit, then 4-digit)
+        let description = '';
+        let headingDescription = '';
+        let sectionTitle = '';
+        const code8 = trfc.rawCode; // e.g. "01012100"
+        const code6 = code8.slice(0, 6); // e.g. "010121"
+        const code4 = code8.slice(0, 4); // e.g. "0101"
+        const code2 = code8.slice(0, 2); // e.g. "01"
+
+        const hs8 = hsDescMap.get(code8);
+        const hs6 = hsDescMap.get(code6);
+        const hs4 = hsDescMap.get(code4);
+        const hs2 = hsDescMap.get(code2);
+
+        if (hs8) { description = hs8.description; sectionTitle = hs8.section; descFilled++; }
+        else if (hs6) { description = hs6.description; sectionTitle = hs6.section; descFilled++; }
+
+        if (hs4) headingDescription = hs4.description;
+
+        // Map HS section roman numeral to number
+        const sectionNum = sectionTitle ? romanToInt(sectionTitle) : 0;
+
         insert.run(
-          0,                // section_number (unknown without scrape)
-          '',               // section_title
+          sectionNum,
+          sectionTitle,
           chapterNum,
-          '',               // chapter_title (unknown without scrape)
+          hs2?.description || '', // chapter title from 2-digit HS
           headingCode,
-          '',               // heading_description
+          headingDescription,
           trfc.code,
           null,             // statistical_code
-          '',               // description (unknown without scrape)
+          description,
           null,             // unit
           dutyRate,
           dutyRateNumeric,
@@ -368,10 +403,12 @@ export class Schedule3Updater extends BaseUpdater {
         );
       }
 
+      logInfo(SRC, `Filled ${descFilled} descriptions from HS data out of ${trfcCodes.length} codes`);
+
       return {
         added: trfcCodes.length,
         removed: 0,
-        modified: 0,
+        modified: descFilled,
         total: trfcCodes.length,
       };
     }
