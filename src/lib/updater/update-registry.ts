@@ -6,6 +6,7 @@ import { logInfo, logError } from './update-logger';
 // Import concrete updater classes
 // ---------------------------------------------------------------------------
 import { Schedule1Updater } from './updaters/schedule1-updater';
+import { Schedule2Updater } from './updaters/schedule2-updater';
 import { Schedule3Updater } from './updaters/schedule3-updater';
 import { FtaSchedulesUpdater } from './updaters/fta-schedules-updater';
 import { CustomsActUpdater } from './updaters/customs-act-updater';
@@ -46,8 +47,9 @@ export function getUpdaterRegistry(): Map<string, BaseUpdater> {
   // ---- register all 21 updaters ----
   const updaters: BaseUpdater[] = [
     new Schedule1Updater(),          // 1.  Countries
-    new Schedule3Updater(),          // 2.  Tariff Classifications
-    new FtaSchedulesUpdater(),       // 3.  FTA Exclusions
+    new Schedule2Updater(),          // 2.  Interpretative Rules
+    new Schedule3Updater(),          // 3.  Tariff Classifications
+    new FtaSchedulesUpdater(),       // 4.  FTA Exclusions (Sch 4-16 incl. sub-schedules)
     new CustomsActUpdater(),         // 4.  Customs Act 1901
     new CustomsTariffActUpdater(),   // 5.  Customs Tariff Act 1995
     new GstActUpdater(),             // 6.  GST Act 1999

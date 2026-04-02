@@ -249,18 +249,19 @@ export async function scrapeSchedule3Chapter(
  * exclusion table rows.
  */
 export async function scrapeFtaSchedule(
-  scheduleNum: number
+  scheduleId: string | number
 ): Promise<FtaExclusionRow[]> {
-  const url = `${ABF_BASE}/schedule-${scheduleNum}`;
-  logInfo(SRC, `Fetching FTA schedule ${scheduleNum} from ${url}`);
+  const id = String(scheduleId).toLowerCase();
+  const url = `${ABF_BASE}/schedule-${id}`;
+  logInfo(SRC, `Fetching FTA schedule ${id} from ${url}`);
   const $ = await fetchAndParse(url);
 
   const rows: FtaExclusionRow[] = [];
-  const scheduleName = `Schedule ${scheduleNum}`;
+  const scheduleName = `Schedule ${String(scheduleId).toUpperCase()}`;
 
   // Try to find the FTA name from a heading
   const ftaName =
-    $('h1').first().text().trim() || `FTA Schedule ${scheduleNum}`;
+    $('h1').first().text().trim() || `FTA Schedule ${scheduleId}`;
 
   $('table')
     .find('tbody tr')
@@ -284,6 +285,6 @@ export async function scrapeFtaSchedule(
       }
     });
 
-  logInfo(SRC, `FTA schedule ${scheduleNum} — ${rows.length} exclusion rows`);
+  logInfo(SRC, `FTA schedule ${scheduleId} — ${rows.length} exclusion rows`);
   return rows;
 }
