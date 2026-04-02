@@ -2104,9 +2104,28 @@ export default function TariffSearchPage() {
                             selectedEntry?.tariff_code === r.code ? 'border-blue-500 bg-blue-50' : 'border-transparent'
                           }`}
                         >
-                          {/* Row 1: Code + Stat + Badges */}
+                          {/* Row 1: Code + Bookmark + Stat + Badges */}
                           <div className="flex justify-between items-start">
                             <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isBookmarked(r.code)) {
+                                    removeBookmark(r.code);
+                                  } else {
+                                    addBookmark({ code: r.code, description: r.description, duty_rate: r.duty_rate || 'Free', unit: r.unit || '', notes: '' });
+                                  }
+                                  window.dispatchEvent(new Event('bookmarks-changed'));
+                                  // Force re-render by toggling a dummy state
+                                  setTotal(t => t);
+                                }}
+                                className={`cursor-pointer text-lg leading-none ${isBookmarked(r.code) ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}
+                                title={isBookmarked(r.code) ? 'Remove bookmark' : 'Bookmark this code'}
+                              >
+                                {isBookmarked(r.code) ? '\u2605' : '\u2606'}
+                              </span>
                               <span className="font-mono font-bold text-blue-700 text-base">{r.code}</span>
                               {r.statistical_code && (
                                 <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-mono">
@@ -2293,7 +2312,30 @@ export default function TariffSearchPage() {
                     {/* Header with full hierarchy */}
                     <div className="p-4 bg-blue-50 border-b-2 border-blue-200">
                       <div className="flex items-start justify-between">
-                        <h3 className="font-mono font-bold text-blue-900 text-lg">
+                        <h3 className="font-mono font-bold text-blue-900 text-lg flex items-center gap-2">
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => {
+                              if (isBookmarked(selectedEntry.tariff_code)) {
+                                removeBookmark(selectedEntry.tariff_code);
+                              } else {
+                                addBookmark({
+                                  code: selectedEntry.tariff_code,
+                                  description: selectedEntry.description,
+                                  duty_rate: selectedEntry.duty_rate || 'Free',
+                                  unit: selectedEntry.unit_of_measure || '',
+                                  notes: '',
+                                });
+                              }
+                              window.dispatchEvent(new Event('bookmarks-changed'));
+                              setTotal(t => t);
+                            }}
+                            className={`cursor-pointer text-xl leading-none ${isBookmarked(selectedEntry.tariff_code) ? 'text-yellow-500' : 'text-blue-300 hover:text-yellow-400'}`}
+                            title={isBookmarked(selectedEntry.tariff_code) ? 'Remove bookmark' : 'Bookmark this code'}
+                          >
+                            {isBookmarked(selectedEntry.tariff_code) ? '\u2605' : '\u2606'}
+                          </span>
                           {selectedEntry.tariff_code}
                           {selectedEntry.statistical_code && (
                             <span className="text-blue-600 text-sm font-normal ml-2">(Stat: {selectedEntry.statistical_code})</span>
