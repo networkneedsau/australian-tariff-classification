@@ -18,11 +18,16 @@ export class IllegalLoggingUpdater extends BaseUpdater {
   }
 
   apply(db: Database.Database, data: { act: ActSection[]; reg: ActSection[] }): ApplyResult {
+    // Safety: don't delete existing data if scrape returned nothing
+    if (data.act.length === 0 && data.reg.length === 0) {
+      return { added: 0, removed: 0, modified: 0, total: 0 };
+    }
+
     let totalAdded = 0;
 
     // Act — schema: part, part_title, division, division_title, subdivision, section_number, section_title, content
     const actTable = 'illegal_logging_act';
-    db.prepare(`DELETE FROM ${actTable}`).run();
+    if (data.act.length > 0) db.prepare(`DELETE FROM ${actTable}`).run();
     const insertAct = db.prepare(
       `INSERT INTO ${actTable} (part, part_title, division, division_title, subdivision, section_number, section_title, content)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
@@ -35,7 +40,7 @@ export class IllegalLoggingUpdater extends BaseUpdater {
 
     // Regulation — schema: part, part_title, division, division_title, regulation_number, regulation_title, content
     const regTable = 'illegal_logging_reg';
-    db.prepare(`DELETE FROM ${regTable}`).run();
+    if (data.reg.length > 0) db.prepare(`DELETE FROM ${regTable}`).run();
     const insertReg = db.prepare(
       `INSERT INTO ${regTable} (part, part_title, division, division_title, regulation_number, regulation_title, content)
        VALUES (?, ?, ?, ?, ?, ?, ?)`

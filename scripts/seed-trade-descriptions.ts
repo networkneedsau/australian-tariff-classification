@@ -14,7 +14,8 @@ db.exec(`
     part TEXT NOT NULL,
     part_title TEXT NOT NULL,
     section_number TEXT NOT NULL,
-    section_title TEXT NOT NULL
+    section_title TEXT NOT NULL,
+    content TEXT DEFAULT ''
   );
   CREATE INDEX idx_td_act_part ON trade_desc_act(part);
 `);
@@ -60,7 +61,8 @@ db.exec(`
     division_title TEXT,
     subdivision TEXT,
     regulation_number TEXT NOT NULL,
-    regulation_title TEXT NOT NULL
+    regulation_title TEXT NOT NULL,
+    content TEXT DEFAULT ''
   );
   CREATE INDEX idx_td_regs_part ON trade_desc_regs(part);
 `);
@@ -105,9 +107,9 @@ db.transaction(() => { for (const r of regRows) insertReg.run({ part: r.part, pa
 
 // FTS
 db.exec(`
-  CREATE VIRTUAL TABLE IF NOT EXISTS trade_desc_act_fts USING fts5(part, part_title, section_number, section_title, content='trade_desc_act', content_rowid='id');
+  CREATE VIRTUAL TABLE IF NOT EXISTS trade_desc_act_fts USING fts5(part, part_title, section_number, section_title, content, content='trade_desc_act', content_rowid='id');
   INSERT INTO trade_desc_act_fts(trade_desc_act_fts) VALUES('rebuild');
-  CREATE VIRTUAL TABLE IF NOT EXISTS trade_desc_regs_fts USING fts5(part, part_title, division, division_title, subdivision, regulation_number, regulation_title, content='trade_desc_regs', content_rowid='id');
+  CREATE VIRTUAL TABLE IF NOT EXISTS trade_desc_regs_fts USING fts5(part, part_title, division, division_title, subdivision, regulation_number, regulation_title, content, content='trade_desc_regs', content_rowid='id');
   INSERT INTO trade_desc_regs_fts(trade_desc_regs_fts) VALUES('rebuild');
 `);
 

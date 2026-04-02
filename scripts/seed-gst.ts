@@ -16,7 +16,8 @@ db.exec(`
     part TEXT,
     part_title TEXT,
     division TEXT NOT NULL,
-    division_title TEXT NOT NULL
+    division_title TEXT NOT NULL,
+    content TEXT DEFAULT ''
   );
   CREATE INDEX idx_gst_act_chapter ON gst_act(chapter);
   CREATE INDEX idx_gst_act_division ON gst_act(division);
@@ -204,7 +205,7 @@ db.transaction(() => {
 // FTS indexes
 db.exec(`
   CREATE VIRTUAL TABLE IF NOT EXISTS gst_act_fts USING fts5(
-    chapter, chapter_title, part, part_title, division, division_title,
+    chapter, chapter_title, part, part_title, division, division_title, content,
     content='gst_act', content_rowid='id'
   );
   INSERT INTO gst_act_fts(gst_act_fts) VALUES('rebuild');

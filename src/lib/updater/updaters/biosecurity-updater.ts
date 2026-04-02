@@ -25,11 +25,16 @@ export class BiosecurityUpdater extends BaseUpdater {
   }
 
   apply(db: Database.Database, data: { act: ActSection[]; regs: ActSection[] }): ApplyResult {
+    // Safety: don't delete existing data if scrape returned nothing
+    if (data.act.length === 0 && data.regs.length === 0) {
+      return { added: 0, removed: 0, modified: 0, total: 0 };
+    }
+
     let totalAdded = 0;
 
     // Biosecurity Act
     const actTable = 'biosecurity_act';
-    db.prepare(`DELETE FROM ${actTable}`).run();
+    if (data.act.length > 0) db.prepare(`DELETE FROM ${actTable}`).run();
     const insertAct = db.prepare(
       `INSERT INTO ${actTable} (chapter, chapter_title, part, part_title, division, division_title, section_range)
        VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -43,7 +48,7 @@ export class BiosecurityUpdater extends BaseUpdater {
 
     // Biosecurity Regulations
     const regsTable = 'biosecurity_regs';
-    db.prepare(`DELETE FROM ${regsTable}`).run();
+    if (data.regs.length > 0) db.prepare(`DELETE FROM ${regsTable}`).run();
     const insertRegs = db.prepare(
       `INSERT INTO ${regsTable} (chapter, chapter_title, part, part_title, division, division_title, section_range)
        VALUES (?, ?, ?, ?, ?, ?, ?)`

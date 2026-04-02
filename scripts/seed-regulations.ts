@@ -13,7 +13,8 @@ db.exec(`
     part_title TEXT,
     regulation_number TEXT NOT NULL,
     regulation_title TEXT NOT NULL,
-    category TEXT
+    category TEXT,
+    content TEXT DEFAULT ''
   );
   CREATE INDEX idx_regs_regulation ON prohibited_imports_regs(regulation_number);
   CREATE INDEX idx_regs_part ON prohibited_imports_regs(part);
@@ -136,6 +137,7 @@ db.exec(`
     part,
     part_title,
     category,
+    content,
     content='prohibited_imports_regs',
     content_rowid='id'
   );

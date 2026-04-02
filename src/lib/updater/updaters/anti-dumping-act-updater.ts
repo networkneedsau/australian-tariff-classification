@@ -16,6 +16,11 @@ export class AntiDumpingActUpdater extends BaseUpdater {
   }
 
   apply(db: Database.Database, data: ActSection[]): ApplyResult {
+    // Safety: don't delete existing data if scrape returned nothing
+    if (data.length === 0) {
+      return { added: 0, removed: 0, modified: 0, total: 0 };
+    }
+
     const table = 'anti_dumping_act';
     db.prepare(`DELETE FROM ${table}`).run();
 

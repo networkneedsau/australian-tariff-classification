@@ -23,11 +23,16 @@ export class TradeDescUpdater extends BaseUpdater {
   }
 
   apply(db: Database.Database, data: { act: ActSection[]; regs: ActSection[] }): ApplyResult {
+    // Safety: don't delete existing data if scrape returned nothing
+    if (data.act.length === 0 && data.regs.length === 0) {
+      return { added: 0, removed: 0, modified: 0, total: 0 };
+    }
+
     let totalAdded = 0;
 
     // Act
     const actTable = 'trade_desc_act';
-    db.prepare(`DELETE FROM ${actTable}`).run();
+    if (data.act.length > 0) db.prepare(`DELETE FROM ${actTable}`).run();
     const insertAct = db.prepare(
       `INSERT INTO ${actTable} (part, part_title, section_number, section_title, content)
        VALUES (?, ?, ?, ?, ?)`
@@ -40,7 +45,7 @@ export class TradeDescUpdater extends BaseUpdater {
 
     // Regulations — schema: part, part_title, division, division_title, subdivision, regulation_number, regulation_title, content
     const regsTable = 'trade_desc_regs';
-    db.prepare(`DELETE FROM ${regsTable}`).run();
+    if (data.regs.length > 0) db.prepare(`DELETE FROM ${regsTable}`).run();
     const insertRegs = db.prepare(
       `INSERT INTO ${regsTable} (part, part_title, division, division_title, subdivision, regulation_number, regulation_title, content)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
