@@ -368,6 +368,11 @@ export default function TariffSearchPage() {
   const [customsValue, setCustomsValue] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
+  // TCO linking state
+  const [expandedTco, setExpandedTco] = useState<string | null>(null);
+  const [tcoLinkedTariffs, setTcoLinkedTariffs] = useState<any[]>([]);
+  const [tcoLinkLoading, setTcoLinkLoading] = useState(false);
+
   // Schedule browse state
   const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs' | 'ad-act' | 'il-act' | 'il-reg' | 'ifc-act' | 'ifc-reg' | 'acn' | 'aqis' | 'precedents' | 'compendium' | 'tco' | 'alpha-index' | 'hsen' | 'cbp-rulings'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
@@ -1981,6 +1986,15 @@ export default function TariffSearchPage() {
               )}
             </div>
 
+            {/* Admin link */}
+            <a
+              href="/admin"
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              Admin
+            </a>
+
           </div>
         </div>
       </header>
@@ -2032,29 +2046,63 @@ export default function TariffSearchPage() {
                         <button
                           key={r.id}
                           onClick={() => selectTariff(r.code)}
-                          className={`w-full text-left bg-white rounded-lg shadow p-4 mb-2 hover:bg-blue-50 hover:border-blue-300 border-2 transition-colors ${
+                          className={`w-full text-left bg-white rounded-lg shadow-sm p-4 mb-2 hover:bg-blue-50 hover:border-blue-300 border-2 transition-colors ${
                             selectedEntry?.tariff_code === r.code ? 'border-blue-500 bg-blue-50' : 'border-transparent'
                           }`}
                         >
+                          {/* Row 1: Code + Stat + Badges */}
                           <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-blue-700">{r.code}</span>
-                                {r.statistical_code && (
-                                  <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600">
-                                    Stat: {r.statistical_code}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-sm text-gray-700 mt-1">{r.description}</p>
-                              <p className="text-xs text-gray-400 mt-1">Ch.{r.chapter_number} &mdash; {r.chapter_title}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono font-bold text-blue-700 text-base">{r.code}</span>
+                              {r.statistical_code && (
+                                <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-mono">
+                                  Stat: {r.statistical_code}
+                                </span>
+                              )}
+                              {r.unit && (
+                                <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">
+                                  {r.unit}
+                                </span>
+                              )}
                             </div>
-                            <div className="text-right ml-4 shrink-0">
-                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            <div className="text-right ml-3 shrink-0">
+                              <span className={`inline-block px-2 py-1 rounded text-xs font-semibold max-w-[140px] truncate ${
                                 r.is_free ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
-                              }`}>
-                                {r.duty_rate || 'N/A'}
+                              }`} title={r.duty_rate || 'N/A'}>
+                                {r.is_free ? 'Free' : (r.duty_rate || 'N/A')}
                               </span>
+                            </div>
+                          </div>
+
+                          {/* Row 2: Description */}
+                          <p className="text-sm text-gray-800 mt-2 leading-snug">{r.description}</p>
+
+                          {/* Row 3: Heading description (if different from classification description) */}
+                          {r.heading_description && r.heading_description !== r.description && (
+                            <p className="text-xs text-gray-500 mt-1 italic">
+                              Heading {r.heading_code}: {r.heading_description}
+                            </p>
+                          )}
+
+                          {/* Row 4: Hierarchy breadcrumb + indicators */}
+                          <div className="flex items-center justify-between mt-2">
+                            <p className="text-xs text-gray-400">
+                              <span className="text-gray-500">Section {toRoman(r.section_number)}</span>
+                              {' \u203A '}
+                              <span>Ch.{r.chapter_number}</span>
+                              {r.chapter_title && <span> &mdash; {r.chapter_title}</span>}
+                            </p>
+                            <div className="flex items-center gap-1.5">
+                              {r.tco_references && r.tco_references.length > 0 && (
+                                <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium" title={`${r.tco_references.length} TCO(s)`}>
+                                  TCO
+                                </span>
+                              )}
+                              {!r.is_free && r.duty_rate && r.duty_rate.length > 10 && (
+                                <span className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-medium" title="Multiple/compound rate">
+                                  FTA
+                                </span>
+                              )}
                             </div>
                           </div>
                         </button>
@@ -2188,27 +2236,52 @@ export default function TariffSearchPage() {
                   </div>
                 ) : (
                   <div className="bg-white rounded-lg shadow divide-y divide-gray-100">
-                    {/* Header */}
-                    <div className="p-4 bg-blue-50">
-                      <h3 className="font-semibold text-blue-900">
-                        {selectedEntry.tariff_code}
-                        {selectedEntry.statistical_code && ` (Stat: ${selectedEntry.statistical_code})`}
-                      </h3>
-                      <p className="text-sm text-blue-700 mt-1">{selectedEntry.description}</p>
-                      <p className="text-xs text-blue-500 mt-1">
-                        Section {selectedEntry.section.number}: {selectedEntry.section.title} &rarr; Ch.{selectedEntry.chapter.number}: {selectedEntry.chapter.title}
-                      </p>
+                    {/* Header with full hierarchy */}
+                    <div className="p-4 bg-blue-50 border-b-2 border-blue-200">
+                      <div className="flex items-start justify-between">
+                        <h3 className="font-mono font-bold text-blue-900 text-lg">
+                          {selectedEntry.tariff_code}
+                          {selectedEntry.statistical_code && (
+                            <span className="text-blue-600 text-sm font-normal ml-2">(Stat: {selectedEntry.statistical_code})</span>
+                          )}
+                        </h3>
+                        <span className={`inline-block px-3 py-1 rounded text-sm font-bold ${
+                          selectedEntry.is_free ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {selectedEntry.is_free ? 'Free' : (selectedEntry.duty_rate || 'N/A')}
+                        </span>
+                      </div>
+                      <p className="text-sm text-blue-800 mt-2 leading-snug font-medium">{selectedEntry.description}</p>
+
+                      {/* Full hierarchy breadcrumb */}
+                      <div className="mt-3 bg-blue-100/50 rounded p-2.5 text-xs text-blue-700 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-blue-500 w-16 shrink-0">Section</span>
+                          <span>{toRoman(selectedEntry.section.number)}: {selectedEntry.section.title}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-blue-500 w-16 shrink-0">Chapter</span>
+                          <span>{selectedEntry.chapter.number}: {selectedEntry.chapter.title}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-blue-500 w-16 shrink-0">Heading</span>
+                          <span>{selectedEntry.heading.code}: {selectedEntry.heading.description}</span>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Auto-populated fields */}
                     {customsFields && (
                       <div className="p-4 space-y-3">
-                        <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Auto-Populated Fields</h4>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                          <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          Auto-Populated Fields
+                        </h4>
                         <div className="grid grid-cols-2 gap-3">
                           <Field label="Tariff Code" value={customsFields.tariff_classification_code} />
                           <Field label="Statistical Code" value={customsFields.tariff_stat_code || '\u2014'} />
                           <Field label="Unit of Quantity" value={customsFields.unit_of_quantity} />
-                          <Field label="Duty Rate" value={customsFields.general_duty_rate} highlight={customsFields.general_duty_rate === 'Free'} />
+                          <Field label="General Duty Rate" value={customsFields.general_duty_rate} highlight={customsFields.general_duty_rate === 'Free'} />
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-500">Goods Description</label>
@@ -2220,7 +2293,131 @@ export default function TariffSearchPage() {
                           />
                         </div>
 
-                        <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wider pt-2">Duty Calculation</h4>
+                        {/* Additional classification info */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <Field label="GST Applicable" value={customsFields.gst_applicable ? 'Yes' : 'No'} />
+                          <Field label="GST Rate" value={`${customsFields.gst_rate}%`} />
+                          <Field label="Concessions" value={selectedEntry.tco_references.length > 0 ? `${selectedEntry.tco_references.length} TCO(s)` : 'None'} />
+                        </div>
+
+                      </div>
+                    )}
+
+                    {/* FTA Exclusions / Preferential Rates */}
+                    {selectedEntry.fta_exclusions.length > 0 && (
+                      <div className="p-4">
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                          <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          FTA Preferential Rates ({selectedEntry.fta_exclusions.length})
+                        </h4>
+                        <div className="border border-gray-200 rounded overflow-hidden">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="bg-gray-50 text-left">
+                                <th className="px-3 py-1.5 font-semibold text-gray-600">Schedule</th>
+                                <th className="px-3 py-1.5 font-semibold text-gray-600">FTA Agreement</th>
+                                <th className="px-3 py-1.5 font-semibold text-gray-600 text-right">Rate</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                              {selectedEntry.fta_exclusions.map((f, i) => (
+                                <tr key={i} className="hover:bg-blue-50">
+                                  <td className="px-3 py-1.5 font-mono text-gray-500">{f.schedule}</td>
+                                  <td className="px-3 py-1.5 text-gray-700">{f.fta_name || f.schedule}</td>
+                                  <td className="px-3 py-1.5 text-right font-mono font-medium text-amber-700">{f.duty_rate || '\u2014'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TCO References — clickable with linked tariff codes */}
+                    {selectedEntry.tco_references.length > 0 && (
+                      <div className="p-4">
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                          <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                          Tariff Concession Orders ({selectedEntry.tco_references.length})
+                        </h4>
+                        <p className="text-[10px] text-gray-400 mb-2">Click a TCO to see linked tariff items</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {selectedEntry.tco_references.map((tco, i) => (
+                            <button
+                              key={i}
+                              onClick={async () => {
+                                if (expandedTco === tco) {
+                                  setExpandedTco(null);
+                                  setTcoLinkedTariffs([]);
+                                  return;
+                                }
+                                setExpandedTco(tco);
+                                setTcoLinkLoading(true);
+                                try {
+                                  const res = await fetch(`/api/tariff/tco-links?tco=${encodeURIComponent(tco)}`);
+                                  const data = await res.json();
+                                  setTcoLinkedTariffs(data.tariff_codes || []);
+                                } catch { setTcoLinkedTariffs([]); }
+                                setTcoLinkLoading(false);
+                              }}
+                              className={`text-xs px-2.5 py-1 rounded border font-mono transition-colors cursor-pointer ${
+                                expandedTco === tco
+                                  ? 'bg-purple-600 text-white border-purple-600'
+                                  : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+                              }`}
+                            >
+                              {tco}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Expanded TCO: show linked tariff items */}
+                        {expandedTco && (
+                          <div className="mt-3 bg-purple-50/50 border border-purple-200 rounded-lg p-3">
+                            <div className="text-xs font-semibold text-purple-800 mb-2">
+                              TCO {expandedTco} &mdash; Linked Tariff Items
+                            </div>
+                            {tcoLinkLoading ? (
+                              <div className="text-xs text-gray-400 py-2">Loading...</div>
+                            ) : tcoLinkedTariffs.length === 0 ? (
+                              <div className="text-xs text-gray-400 py-2">
+                                No tariff items linked to this TCO yet.
+                                <br />
+                                <span className="text-purple-600">Use the link button below to connect tariff codes.</span>
+                              </div>
+                            ) : (
+                              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                                {tcoLinkedTariffs.map((link: any, li: number) => (
+                                  <button
+                                    key={li}
+                                    onClick={() => selectTariff(link.tariff_code)}
+                                    className="w-full text-left text-xs bg-white rounded p-2 border border-purple-100 hover:border-purple-300 hover:bg-purple-50 transition-colors flex items-start gap-2"
+                                  >
+                                    <span className="font-mono font-bold text-purple-700 shrink-0">{link.tariff_code}</span>
+                                    <span className="text-gray-600 flex-1">{link.tariff_description || link.description || ''}</span>
+                                    {link.duty_rate && (
+                                      <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                        link.is_free ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                                      }`}>
+                                        {link.is_free ? 'Free' : link.duty_rate}
+                                      </span>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Duty Calculator — at the bottom */}
+                    {customsFields && (
+                      <div className="p-4">
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                          <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                          Duty Calculation
+                        </h4>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="block text-xs font-medium text-gray-500">Customs Value (AUD)</label>
@@ -2228,7 +2425,7 @@ export default function TariffSearchPage() {
                               type="number"
                               value={customsValue}
                               onChange={(e) => setCustomsValue(e.target.value)}
-                              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded text-sm text-gray-900"
+                              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded text-sm text-gray-900 focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
                               placeholder="Enter value..."
                             />
                           </div>
@@ -2238,53 +2435,30 @@ export default function TariffSearchPage() {
                             highlight={customsFields.duty_payable === 0}
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <Field label="GST Rate" value={`${customsFields.gst_rate}%`} />
+                        <div className="grid grid-cols-2 gap-3 mt-3">
+                          <Field label="GST Base (Value + Duty)" value={
+                            customsFields.duty_payable !== null && customsValue
+                              ? `$${(parseFloat(customsValue) + customsFields.duty_payable).toFixed(2)}`
+                              : '\u2014'
+                          } />
                           <Field label="GST Amount" value={gstAmount !== null ? `$${gstAmount.toFixed(2)}` : '\u2014'} />
                         </div>
 
                         {totalPayable !== null && (
-                          <div className="bg-amber-50 border border-amber-200 rounded p-3 mt-2">
-                            <div className="text-sm font-semibold text-amber-900">Total Payable</div>
-                            <div className="text-2xl font-bold text-amber-700">${totalPayable.toFixed(2)}</div>
-                            <div className="text-xs text-amber-600 mt-1">
-                              Duty ${customsFields.duty_payable!.toFixed(2)} + GST ${gstAmount!.toFixed(2)}
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-3">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <div className="text-xs font-semibold text-amber-700 uppercase">Total Payable</div>
+                                <div className="text-2xl font-bold text-amber-800 mt-0.5">${totalPayable.toFixed(2)}</div>
+                              </div>
+                              <div className="text-right text-xs text-amber-600 space-y-0.5">
+                                <div>Customs Value: ${parseFloat(customsValue).toFixed(2)}</div>
+                                <div>Duty ({selectedEntry!.duty_rate}): ${customsFields.duty_payable!.toFixed(2)}</div>
+                                <div>GST ({customsFields.gst_rate}%): ${gstAmount!.toFixed(2)}</div>
+                              </div>
                             </div>
                           </div>
                         )}
-                      </div>
-                    )}
-
-                    {/* FTA Exclusions */}
-                    {selectedEntry.fta_exclusions.length > 0 && (
-                      <div className="p-4">
-                        <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
-                          FTA Exclusions ({selectedEntry.fta_exclusions.length})
-                        </h4>
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {selectedEntry.fta_exclusions.map((f, i) => (
-                            <div key={i} className="text-xs flex justify-between p-2 bg-gray-50 rounded">
-                              <span className="text-gray-600">{f.fta_name || f.schedule}</span>
-                              <span className="font-mono">{f.duty_rate || '\u2014'}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* TCO References */}
-                    {selectedEntry.tco_references.length > 0 && (
-                      <div className="p-4">
-                        <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
-                          Tariff Concession Orders
-                        </h4>
-                        <div className="flex flex-wrap gap-1">
-                          {selectedEntry.tco_references.map((tco, i) => (
-                            <span key={i} className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                              {tco}
-                            </span>
-                          ))}
-                        </div>
                       </div>
                     )}
                   </div>
@@ -3222,6 +3396,34 @@ export default function TariffSearchPage() {
                                 {item.description && <p className="text-xs text-gray-600 mb-1">{item.description}</p>}
                                 {item.detail && <p className="text-xs text-gray-500"><span className="font-medium">Detail:</span> {item.detail}</p>}
                                 {item.notes && <p className="text-xs text-gray-400 mt-1 italic">{item.notes}</p>}
+
+                                {/* Link to tariff items button — show for items that look like TCO references */}
+                                {item.reference && /s\s?\d/.test(item.reference) && (
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      // Extract section reference and search for tariff codes in that area
+                                      const sectionMatch = item.reference.match(/s\s?(\d+[A-Z]*)/);
+                                      if (sectionMatch) {
+                                        setActiveView('search');
+                                        setActiveSchedule(null);
+                                        // Pre-fill search with the section reference
+                                        const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+                                        if (searchInput) {
+                                          const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+                                          if (setter) {
+                                            setter.call(searchInput, item.reference);
+                                            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                          }
+                                        }
+                                      }
+                                    }}
+                                    className="mt-2 text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                    View related tariff provisions
+                                  </button>
+                                )}
                               </>
                             )}
                             {activeView === 'alpha-index' && (
