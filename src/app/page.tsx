@@ -201,6 +201,10 @@ interface IntlObPartGroup { part: string; part_title: string; regulations: IntlO
 // ── Customs (Prohibited Exports) Regulations 1958 ─────────────────
 // Reuses IntlObRow/IntlObPartGroup interfaces (same structure)
 
+// ── Illegal Logging Prohibition ────────────────────────────────────
+// Act reuses TdActRow/TdActPartGroup (same part/section structure)
+// Reg reuses IntlObRow/IntlObPartGroup (same part/regulation structure)
+
 // ── Dumping Notices ────────────────────────────────────────────────
 
 interface DumpingRow {
@@ -329,7 +333,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs' | 'ad-act'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs' | 'ad-act' | 'il-act' | 'il-reg' | 'ifc-act' | 'ifc-reg'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -434,6 +438,28 @@ export default function TariffSearchPage() {
   const [tdRegsLoading, setTdRegsLoading] = useState(false);
   const [expandedTdSection, setExpandedTdSection] = useState<number | null>(null);
 
+  // Illegal Logging Act data
+  const [ilActData, setIlActData] = useState<TdActRow[]>([]);
+  const [ilActParts, setIlActParts] = useState<TdActPartGroup[]>([]);
+  const [expandedIlActPart, setExpandedIlActPart] = useState<string | null>(null);
+  const [ilActLoading, setIlActLoading] = useState(false);
+  // Illegal Logging Reg data
+  const [ilRegData, setIlRegData] = useState<IntlObRow[]>([]);
+  const [ilRegParts, setIlRegParts] = useState<IntlObPartGroup[]>([]);
+  const [expandedIlRegPart, setExpandedIlRegPart] = useState<string | null>(null);
+  const [ilRegLoading, setIlRegLoading] = useState(false);
+
+  // Imported Food Control Act data
+  const [ifcActData, setIfcActData] = useState<TdActRow[]>([]);
+  const [ifcActParts, setIfcActParts] = useState<TdActPartGroup[]>([]);
+  const [expandedIfcActPart, setExpandedIfcActPart] = useState<string | null>(null);
+  const [ifcActLoading, setIfcActLoading] = useState(false);
+  // Imported Food Control Reg data
+  const [ifcRegData, setIfcRegData] = useState<IntlObRow[]>([]);
+  const [ifcRegParts, setIfcRegParts] = useState<IntlObPartGroup[]>([]);
+  const [expandedIfcRegPart, setExpandedIfcRegPart] = useState<string | null>(null);
+  const [ifcRegLoading, setIfcRegLoading] = useState(false);
+
   // Dumping notices data
   const [dumpData, setDumpData] = useState<DumpingRow[]>([]);
   const [dumpCategories, setDumpCategories] = useState<DumpCategoryGroup[]>([]);
@@ -472,6 +498,10 @@ export default function TariffSearchPage() {
   const [refFilter, setRefFilter] = useState('');
   const [cpFilter, setCpFilter] = useState('');
   const [dumpFilter, setDumpFilter] = useState('');
+  const [ilActFilter, setIlActFilter] = useState('');
+  const [ilRegFilter, setIlRegFilter] = useState('');
+  const [ifcActFilter, setIfcActFilter] = useState('');
+  const [ifcRegFilter, setIfcRegFilter] = useState('');
   const [gstActFilter, setGstActFilter] = useState('');
   const [gstRegsFilter, setGstRegsFilter] = useState('');
   const [bioActFilter, setBioActFilter] = useState('');
@@ -709,6 +739,22 @@ export default function TariffSearchPage() {
     ? tdRegsParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_title.toLowerCase().includes(tdRegsFilter.toLowerCase()) || r.regulation_number.toLowerCase().includes(tdRegsFilter.toLowerCase()) || (r.division_title || '').toLowerCase().includes(tdRegsFilter.toLowerCase()) || (r.subdivision || '').toLowerCase().includes(tdRegsFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
     : tdRegsParts;
 
+  const filteredIlActParts = ilActFilter
+    ? ilActParts.map(p => ({ ...p, sections: p.sections.filter(s => s.section_number.toLowerCase().includes(ilActFilter.toLowerCase()) || s.section_title.toLowerCase().includes(ilActFilter.toLowerCase()) || (s.content || '').toLowerCase().includes(ilActFilter.toLowerCase())) })).filter(p => p.sections.length > 0)
+    : ilActParts;
+
+  const filteredIlRegParts = ilRegFilter
+    ? ilRegParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_number.toLowerCase().includes(ilRegFilter.toLowerCase()) || r.regulation_title.toLowerCase().includes(ilRegFilter.toLowerCase()) || (r.content || '').toLowerCase().includes(ilRegFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
+    : ilRegParts;
+
+  const filteredIfcActParts = ifcActFilter
+    ? ifcActParts.map(p => ({ ...p, sections: p.sections.filter(s => s.section_number.toLowerCase().includes(ifcActFilter.toLowerCase()) || s.section_title.toLowerCase().includes(ifcActFilter.toLowerCase()) || (s.content || '').toLowerCase().includes(ifcActFilter.toLowerCase())) })).filter(p => p.sections.length > 0)
+    : ifcActParts;
+
+  const filteredIfcRegParts = ifcRegFilter
+    ? ifcRegParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_number.toLowerCase().includes(ifcRegFilter.toLowerCase()) || r.regulation_title.toLowerCase().includes(ifcRegFilter.toLowerCase()) || (r.content || '').toLowerCase().includes(ifcRegFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
+    : ifcRegParts;
+
   const filteredDumpCategories = dumpFilter
     ? dumpCategories.map(c => ({
         ...c,
@@ -847,7 +893,15 @@ export default function TariffSearchPage() {
                                         ? 'Customs Tariff Regulations 2004'
                                         : activeView === 'ad-act'
                                           ? 'Customs Tariff (Anti-Dumping) Act 1975'
-                                          : activeView === 'chemicals'
+                                          : activeView === 'il-act'
+                                            ? 'Illegal Logging Prohibition Act 2012'
+                                            : activeView === 'il-reg'
+                                              ? 'Illegal Logging Prohibition Regulation 2012'
+                                              : activeView === 'ifc-act'
+                                                ? 'Imported Food Control Act 1992'
+                                                : activeView === 'ifc-reg'
+                                                  ? 'Imported Food Control Regulation 2019'
+                                                  : activeView === 'chemicals'
                     ? 'Chemical Index — CWC Scheduled Chemicals'
                     : activeView === 'ahecc'
                       ? 'AHECC — Export Commodity Classification'
@@ -1499,6 +1553,118 @@ export default function TariffSearchPage() {
                   >
                     <span className="font-mono text-xs font-bold text-purple-700 w-24 shrink-0 pt-0.5">TD Regs</span>
                     <span className="text-sm text-gray-700">Trade Descriptions Regulations 2016</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 mx-3" />
+
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Illegal Logging</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
+                      setActiveView('il-act');
+                      setActiveSchedule(null);
+                      setIlActFilter('');
+                      setExpandedIlActPart(null);
+                      if (ilActData.length === 0) {
+                        setIlActLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/illegal-logging-act');
+                          const data: TdActRow[] = await res.json();
+                          setIlActData(data);
+                          const groups: TdActPartGroup[] = [];
+                          const m = new Map<string, TdActPartGroup>();
+                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
+                          setIlActParts(groups);
+                        } catch { /* */ } finally { setIlActLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-green-700 w-24 shrink-0 pt-0.5">IL Act</span>
+                    <span className="text-sm text-gray-700">Illegal Logging Prohibition Act 2012</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
+                      setActiveView('il-reg');
+                      setActiveSchedule(null);
+                      setIlRegFilter('');
+                      setExpandedIlRegPart(null);
+                      if (ilRegData.length === 0) {
+                        setIlRegLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/illegal-logging-reg');
+                          const data: IntlObRow[] = await res.json();
+                          setIlRegData(data);
+                          const groups: IntlObPartGroup[] = [];
+                          const m = new Map<string, IntlObPartGroup>();
+                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
+                          setIlRegParts(groups);
+                        } catch { /* */ } finally { setIlRegLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-green-700 w-24 shrink-0 pt-0.5">IL Reg</span>
+                    <span className="text-sm text-gray-700">Illegal Logging Prohibition Regulation 2012</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 mx-3" />
+
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Food Safety</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
+                      setActiveView('ifc-act');
+                      setActiveSchedule(null);
+                      setIfcActFilter('');
+                      setExpandedIfcActPart(null);
+                      if (ifcActData.length === 0) {
+                        setIfcActLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/imported-food-act');
+                          const data: TdActRow[] = await res.json();
+                          setIfcActData(data);
+                          const groups: TdActPartGroup[] = [];
+                          const m = new Map<string, TdActPartGroup>();
+                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
+                          setIfcActParts(groups);
+                        } catch { /* */ } finally { setIfcActLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-amber-700 w-24 shrink-0 pt-0.5">IFC Act</span>
+                    <span className="text-sm text-gray-700">Imported Food Control Act 1992</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false); setLegislationDropdownOpen(false);
+                      setActiveView('ifc-reg');
+                      setActiveSchedule(null);
+                      setIfcRegFilter('');
+                      setExpandedIfcRegPart(null);
+                      if (ifcRegData.length === 0) {
+                        setIfcRegLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/imported-food-reg');
+                          const data: IntlObRow[] = await res.json();
+                          setIfcRegData(data);
+                          const groups: IntlObPartGroup[] = [];
+                          const m = new Map<string, IntlObPartGroup>();
+                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
+                          setIfcRegParts(groups);
+                        } catch { /* */ } finally { setIfcRegLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-amber-700 w-24 shrink-0 pt-0.5">IFC Reg</span>
+                    <span className="text-sm text-gray-700">Imported Food Control Regulation 2019</span>
                   </button>
 
                 </div>
@@ -2409,19 +2575,24 @@ export default function TariffSearchPage() {
               </div>
             )}
           </div>
-        ) : (activeView === 'td-act' || activeView === 'td-regs') ? (
-          // ── Trade Descriptions Act / Regs ──────────────────────
+        ) : (activeView === 'td-act' || activeView === 'td-regs' || activeView === 'il-act' || activeView === 'il-reg' || activeView === 'ifc-act' || activeView === 'ifc-reg') ? (
+          // ── Trade Descriptions / Illegal Logging / Imported Food ──
           (() => {
-            const isAct = activeView === 'td-act';
-            const title = isAct ? 'Commerce (Trade Descriptions) Act 1905' : 'Commerce (Trade Descriptions) Regulations 2016';
-            const data = isAct ? tdActData : tdRegsData;
-            const loading = isAct ? tdActLoading : tdRegsLoading;
-            const filter = isAct ? tdActFilter : tdRegsFilter;
-            const setFilter = isAct ? setTdActFilter : setTdRegsFilter;
-            const parts = isAct ? filteredTdActParts : filteredTdRegsParts;
-            const allParts = isAct ? tdActParts : tdRegsParts;
-            const expanded = isAct ? expandedTdActPart : expandedTdRegsPart;
-            const setExpanded = isAct ? setExpandedTdActPart : setExpandedTdRegsPart;
+            const isAct = activeView === 'td-act' || activeView === 'il-act' || activeView === 'ifc-act';
+            const title = activeView === 'td-act' ? 'Commerce (Trade Descriptions) Act 1905'
+              : activeView === 'td-regs' ? 'Commerce (Trade Descriptions) Regulations 2016'
+              : activeView === 'il-act' ? 'Illegal Logging Prohibition Act 2012'
+              : activeView === 'il-reg' ? 'Illegal Logging Prohibition Regulation 2012'
+              : activeView === 'ifc-act' ? 'Imported Food Control Act 1992'
+              : 'Imported Food Control Regulation 2019';
+            const data = activeView === 'td-act' ? tdActData : activeView === 'td-regs' ? tdRegsData : activeView === 'il-act' ? ilActData : activeView === 'il-reg' ? ilRegData : activeView === 'ifc-act' ? ifcActData : ifcRegData;
+            const loading = activeView === 'td-act' ? tdActLoading : activeView === 'td-regs' ? tdRegsLoading : activeView === 'il-act' ? ilActLoading : activeView === 'il-reg' ? ilRegLoading : activeView === 'ifc-act' ? ifcActLoading : ifcRegLoading;
+            const filter = activeView === 'td-act' ? tdActFilter : activeView === 'td-regs' ? tdRegsFilter : activeView === 'il-act' ? ilActFilter : activeView === 'il-reg' ? ilRegFilter : activeView === 'ifc-act' ? ifcActFilter : ifcRegFilter;
+            const setFilter = activeView === 'td-act' ? setTdActFilter : activeView === 'td-regs' ? setTdRegsFilter : activeView === 'il-act' ? setIlActFilter : activeView === 'il-reg' ? setIlRegFilter : activeView === 'ifc-act' ? setIfcActFilter : setIfcRegFilter;
+            const parts = activeView === 'td-act' ? filteredTdActParts : activeView === 'td-regs' ? filteredTdRegsParts : activeView === 'il-act' ? filteredIlActParts : activeView === 'il-reg' ? filteredIlRegParts : activeView === 'ifc-act' ? filteredIfcActParts : filteredIfcRegParts;
+            const allParts = activeView === 'td-act' ? tdActParts : activeView === 'td-regs' ? tdRegsParts : activeView === 'il-act' ? ilActParts : activeView === 'il-reg' ? ilRegParts : activeView === 'ifc-act' ? ifcActParts : ifcRegParts;
+            const expanded = activeView === 'td-act' ? expandedTdActPart : activeView === 'td-regs' ? expandedTdRegsPart : activeView === 'il-act' ? expandedIlActPart : activeView === 'il-reg' ? expandedIlRegPart : activeView === 'ifc-act' ? expandedIfcActPart : expandedIfcRegPart;
+            const setExpanded = activeView === 'td-act' ? setExpandedTdActPart : activeView === 'td-regs' ? setExpandedTdRegsPart : activeView === 'il-act' ? setExpandedIlActPart : activeView === 'il-reg' ? setExpandedIlRegPart : activeView === 'ifc-act' ? setExpandedIfcActPart : setExpandedIfcRegPart;
             return (
               <div>
                 <div className="flex items-center justify-between mb-6">
