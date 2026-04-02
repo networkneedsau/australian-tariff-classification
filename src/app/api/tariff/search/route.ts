@@ -156,6 +156,24 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Enrich tariff results with TCO link counts from tco_tariff_links table
+  let tcoCountMap = new Map<string, number>();
+  if (tariffResults.length > 0) {
+    try {
+      const codes = tariffResults.map((r: any) => r.code);
+      const placeholders = codes.map(() => '?').join(',');
+      const tcoCounts = db.prepare(`
+        SELECT tariff_code, COUNT(*) as cnt
+        FROM tco_tariff_links
+        WHERE tariff_code IN (${placeholders})
+        GROUP BY tariff_code
+      `).all(...codes) as { tariff_code: string; cnt: number }[];
+      for (const row of tcoCounts) {
+        tcoCountMap.set(row.tariff_code, row.cnt);
+      }
+    } catch { /* tco_tariff_links may not exist */ }
+  }
+
   logAudit('search', { query: q, total: tariffTotal }, request);
 
   return NextResponse.json({
@@ -167,6 +185,7 @@ export async function GET(request: NextRequest) {
       ...r,
       is_free: !!r.is_free,
       tco_references: r.tco_references ? JSON.parse(r.tco_references) : [],
+      tco_count: tcoCountMap.get(r.code) || 0,
     })),
     actResults,
     actTotal,

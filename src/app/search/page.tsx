@@ -1704,6 +1704,25 @@ export default function TariffSearchPage() {
                         <span className="font-mono text-xs font-bold text-indigo-700 w-16 shrink-0 pt-0.5">HSEN</span>
                         <span className="text-sm text-gray-700">HS Explanatory Notes</span>
                       </button>
+
+                      <div className="border-t border-gray-100 mx-3 my-1" />
+                      <div className="px-3 pt-1 pb-1">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Reference Pages</p>
+                      </div>
+                      <a
+                        href="/schedule-2"
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-indigo-700 w-16 shrink-0 pt-0.5">GIR</span>
+                        <span className="text-sm text-gray-700">Interpretative Rules</span>
+                      </a>
+                      <a
+                        href="/exchange-rates"
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                      >
+                        <span className="font-mono text-xs font-bold text-indigo-700 w-16 shrink-0 pt-0.5">FX</span>
+                        <span className="text-sm text-gray-700">Exchange Rates</span>
+                      </a>
                     </div>
                   </div>
                 </div>

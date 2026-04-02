@@ -51,9 +51,9 @@ interface RuleAssessment {
   passed: boolean | null; // null = unanswered
 }
 
-// ── FTA descriptions ───────────────────────────────────────────────
+// ── FTA descriptions (fallback) ─────────────────────────────────────
 
-const FTA_DESCRIPTIONS: Record<string, string> = {
+const FTA_DESCRIPTIONS_FALLBACK: Record<string, string> = {
   ChAFTA: 'China-Australia Free Trade Agreement. Covers goods traded between Australia and China with preferential tariff rates.',
   KAFTA: 'Korea-Australia Free Trade Agreement. Provides preferential access for goods traded between Australia and South Korea.',
   JAEPA: 'Japan-Australia Economic Partnership Agreement. Comprehensive EPA covering goods, services, and investment.',
@@ -95,6 +95,9 @@ export default function WizardPage() {
   const [assessments, setAssessments] = useState<RuleAssessment[]>([]);
   const [rulesLoading, setRulesLoading] = useState(false);
 
+  // Dynamic FTA descriptions from preference_schemes API
+  const [ftaDescriptions, setFtaDescriptions] = useState<Record<string, string>>(FTA_DESCRIPTIONS_FALLBACK);
+
   // ── Step 1: Load FTAs ──────────────────────────────────────────
 
   useEffect(() => {
@@ -106,6 +109,22 @@ export default function WizardPage() {
       })
       .catch(() => {})
       .finally(() => setFtaLoading(false));
+
+    // Load preference scheme descriptions (enrich FTA names)
+    fetch('/api/tariff/preference-schemes')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.schemes && data.schemes.length > 0) {
+          const map: Record<string, string> = { ...FTA_DESCRIPTIONS_FALLBACK };
+          for (const s of data.schemes) {
+            if (s.scheme_code && s.scheme_name) {
+              map[s.scheme_code] = s.scheme_name;
+            }
+          }
+          setFtaDescriptions(map);
+        }
+      })
+      .catch(() => { /* keep fallback */ });
   }, []);
 
   // ── Step 2: Product search (debounced) ─────────────────────────
@@ -359,8 +378,8 @@ export default function WizardPage() {
                         </svg>
                       )}
                     </div>
-                    {FTA_DESCRIPTIONS[f.fta_name] && (
-                      <p className="text-sm text-slate-500 mt-1">{FTA_DESCRIPTIONS[f.fta_name]}</p>
+                    {ftaDescriptions[f.fta_name] && (
+                      <p className="text-sm text-slate-500 mt-1">{ftaDescriptions[f.fta_name]}</p>
                     )}
                   </button>
                 ))}

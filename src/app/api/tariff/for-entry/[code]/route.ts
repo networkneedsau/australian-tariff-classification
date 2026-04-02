@@ -79,6 +79,48 @@ export async function GET(
     notes: r.notes,
   }));
 
+  // Look up international HS description from hs_descriptions using 6-digit prefix
+  const hsPrefix = cleanCode.replace(/\D/g, '').substring(0, 6);
+  let hs_description: string | null = null;
+  let hs_section: string | null = null;
+  let hs_chapter: string | null = null;
+
+  try {
+    const hsRow = db.prepare(`
+      SELECT description, section FROM hs_descriptions
+      WHERE hs_code = ? AND level = 6
+      LIMIT 1
+    `).get(hsPrefix) as { description: string; section: string } | undefined;
+
+    if (hsRow) {
+      hs_description = hsRow.description;
+      hs_section = hsRow.section;
+    }
+
+    // Get chapter description
+    const chapterCode = hsPrefix.substring(0, 2);
+    const chapterRow = db.prepare(`
+      SELECT description FROM hs_descriptions
+      WHERE hs_code = ? AND level = 2
+      LIMIT 1
+    `).get(chapterCode) as { description: string } | undefined;
+
+    if (chapterRow) {
+      hs_chapter = chapterRow.description;
+    }
+  } catch { /* hs_descriptions may not be populated */ }
+
+  // Query TCO links from tco_tariff_links table
+  let tco_links: { tco_number: string; linked_at: string }[] = [];
+  try {
+    tco_links = db.prepare(`
+      SELECT tco_number, linked_at
+      FROM tco_tariff_links
+      WHERE tariff_code = ?
+      ORDER BY tco_number
+    `).all(cleanCode) as { tco_number: string; linked_at: string }[];
+  } catch { /* table may not exist */ }
+
   logAudit('classification_lookup', { code: cleanCode }, request);
 
   return NextResponse.json({
@@ -96,8 +138,16 @@ export async function GET(
     chapter: { number: item.chapter_number, title: item.chapter_title },
     heading: { code: item.heading_code, description: item.heading_description },
 
-    // TCO references
+    // International HS description
+    hs_description,
+    hs_section,
+    hs_chapter,
+
+    // TCO references (legacy JSON field)
     tco_references: item.tco_references ? JSON.parse(item.tco_references) : [],
+
+    // TCO links (from tco_tariff_links table)
+    tco_links,
 
     // FTA information for preference rate selection
     fta_exclusions: ftaExclusions,
