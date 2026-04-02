@@ -329,7 +329,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -390,6 +390,13 @@ export default function TariffSearchPage() {
   const [expandedIntlObPart, setExpandedIntlObPart] = useState<string | null>(null);
   const [intlObLoading, setIntlObLoading] = useState(false);
   const [expandedIntlObSection, setExpandedIntlObSection] = useState<number | null>(null);
+
+  // Customs Regulation 2015 data
+  const [crData, setCrData] = useState<IntlObRow[]>([]);
+  const [crParts, setCrParts] = useState<IntlObPartGroup[]>([]);
+  const [expandedCrPart, setExpandedCrPart] = useState<string | null>(null);
+  const [crLoading, setCrLoading] = useState(false);
+  const [expandedCrSection, setExpandedCrSection] = useState<number | null>(null);
 
   // Prohibited Exports data
   const [peData, setPeData] = useState<IntlObRow[]>([]);
@@ -455,6 +462,7 @@ export default function TariffSearchPage() {
   const [tdRegsFilter, setTdRegsFilter] = useState('');
   const [intlObFilter, setIntlObFilter] = useState('');
   const [peFilter, setPeFilter] = useState('');
+  const [crFilter, setCrFilter] = useState('');
   const [rulesFilter, setRulesFilter] = useState('');
   const [sectionsFilter, setSectionsFilter] = useState('');
   const [ftaFilter, setFtaFilter] = useState('');
@@ -652,6 +660,10 @@ export default function TariffSearchPage() {
     ? intlObParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_title.toLowerCase().includes(intlObFilter.toLowerCase()) || r.regulation_number.toLowerCase().includes(intlObFilter.toLowerCase()) || (r.division_title || '').toLowerCase().includes(intlObFilter.toLowerCase()) || (r.content || '').toLowerCase().includes(intlObFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
     : intlObParts;
 
+  const filteredCrParts = crFilter
+    ? crParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_title.toLowerCase().includes(crFilter.toLowerCase()) || r.regulation_number.toLowerCase().includes(crFilter.toLowerCase()) || (r.division_title || '').toLowerCase().includes(crFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
+    : crParts;
+
   const filteredPeParts = peFilter
     ? peParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_title.toLowerCase().includes(peFilter.toLowerCase()) || r.regulation_number.toLowerCase().includes(peFilter.toLowerCase()) || (r.division_title || '').toLowerCase().includes(peFilter.toLowerCase()) || (r.content || '').toLowerCase().includes(peFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
     : peParts;
@@ -794,7 +806,9 @@ export default function TariffSearchPage() {
                                 ? 'Customs (International Obligations) Regulation 2015'
                                 : activeView === 'pe-regs'
                                   ? 'Customs (Prohibited Exports) Regulations 1958'
-                                  : activeView === 'chemicals'
+                                  : activeView === 'customs-reg'
+                                    ? 'Customs Regulation 2015'
+                                    : activeView === 'chemicals'
                     ? 'Chemical Index — CWC Scheduled Chemicals'
                     : activeView === 'ahecc'
                       ? 'AHECC — Export Commodity Classification'
@@ -1161,6 +1175,31 @@ export default function TariffSearchPage() {
                   >
                     <span className="font-mono text-xs font-bold text-red-700 w-24 shrink-0 pt-0.5">Exports</span>
                     <span className="text-sm text-gray-700">Prohibited Exports Regulations 1958</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setLegislationDropdownOpen(false);
+                      setActiveView('customs-reg');
+                      setActiveSchedule(null);
+                      setCrFilter('');
+                      setExpandedCrPart(null);
+                      if (crData.length === 0) {
+                        setCrLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/customs-reg');
+                          const data: IntlObRow[] = await res.json();
+                          setCrData(data);
+                          const groups: IntlObPartGroup[] = [];
+                          const m = new Map<string, IntlObPartGroup>();
+                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, regulations: [] }; m.set(d.part, g); groups.push(g); } g.regulations.push(d); }
+                          setCrParts(groups);
+                        } catch { /* */ } finally { setCrLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-blue-700 w-24 shrink-0 pt-0.5">Cust Reg</span>
+                    <span className="text-sm text-gray-700">Customs Regulation 2015</span>
                   </button>
 
                   <div className="border-t border-gray-100 mx-3" />
@@ -2033,6 +2072,57 @@ export default function TariffSearchPage() {
               </div>
             );
           })()
+        ) : activeView === 'customs-reg' ? (
+          // ── Customs Regulation 2015 ────────────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                Back to Search
+              </button>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">Customs Regulation 2015</h2>
+              <p className="text-xs text-gray-500 mb-3">{crParts.length} parts, {crData.length} regulations — cargo reporting, warehousing, duty free, brokers, duties, exports</p>
+              <input type="text" value={crFilter} onChange={(e) => setCrFilter(e.target.value)} placeholder="Search regulations..." className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" />
+            </div>
+            {crLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center"><div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" /></div>
+            ) : (
+              <div className="space-y-3">
+                {filteredCrParts.map((pg) => (
+                  <div key={pg.part} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button onClick={() => setExpandedCrPart(expandedCrPart === pg.part ? null : pg.part)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-blue-50 transition-colors">
+                      <div><span className="font-mono font-bold text-blue-700 mr-3">{pg.part}</span><span className="text-gray-800">{pg.part_title}</span></div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{pg.regulations.length}</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedCrPart === pg.part ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </button>
+                    {expandedCrPart === pg.part && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {pg.regulations.map((r) => (
+                          <div key={r.id} className="px-6 py-2 text-sm hover:bg-blue-50 transition-colors">
+                            <button onClick={() => setExpandedCrSection(expandedCrSection === r.id ? null : r.id)} className="w-full text-left flex items-start gap-3">
+                              <span className="font-mono text-blue-600 font-medium w-16 shrink-0">r.{r.regulation_number}</span>
+                              <div className="flex-1">
+                                <span className="text-gray-700 font-medium">{r.regulation_title}</span>
+                                {r.division && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">{r.division}</span>}
+                                {r.content && <span className="text-xs text-blue-400 ml-2">{expandedCrSection === r.id ? '\u25B2' : '\u25BC'}</span>}
+                              </div>
+                            </button>
+                            {expandedCrSection === r.id && r.content && (
+                              <div className="mt-2 ml-16 pl-4 border-l-2 border-blue-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">{r.content}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         ) : activeView === 'pe-regs' ? (
           // ── Prohibited Exports Regulations ─────────────────────
           <div>
