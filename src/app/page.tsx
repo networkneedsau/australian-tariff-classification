@@ -329,7 +329,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs' | 'ad-act'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -390,6 +390,13 @@ export default function TariffSearchPage() {
   const [expandedIntlObPart, setExpandedIntlObPart] = useState<string | null>(null);
   const [intlObLoading, setIntlObLoading] = useState(false);
   const [expandedIntlObSection, setExpandedIntlObSection] = useState<number | null>(null);
+
+  // Anti-Dumping Act data
+  const [adActData, setAdActData] = useState<TdActRow[]>([]);
+  const [adActParts, setAdActParts] = useState<TdActPartGroup[]>([]);
+  const [expandedAdActPart, setExpandedAdActPart] = useState<string | null>(null);
+  const [adActLoading, setAdActLoading] = useState(false);
+  const [expandedAdSection, setExpandedAdSection] = useState<number | null>(null);
 
   // Customs Tariff Act/Regs data
   const [ctActData, setCtActData] = useState<TdActRow[]>([]);
@@ -476,6 +483,7 @@ export default function TariffSearchPage() {
   const [crFilter, setCrFilter] = useState('');
   const [ctActFilter, setCtActFilter] = useState('');
   const [ctRegsFilter, setCtRegsFilter] = useState('');
+  const [adActFilter, setAdActFilter] = useState('');
   const [rulesFilter, setRulesFilter] = useState('');
   const [sectionsFilter, setSectionsFilter] = useState('');
   const [ftaFilter, setFtaFilter] = useState('');
@@ -673,6 +681,10 @@ export default function TariffSearchPage() {
     ? intlObParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_title.toLowerCase().includes(intlObFilter.toLowerCase()) || r.regulation_number.toLowerCase().includes(intlObFilter.toLowerCase()) || (r.division_title || '').toLowerCase().includes(intlObFilter.toLowerCase()) || (r.content || '').toLowerCase().includes(intlObFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
     : intlObParts;
 
+  const filteredAdActParts = adActFilter
+    ? adActParts.map(p => ({ ...p, sections: p.sections.filter(s => s.section_title.toLowerCase().includes(adActFilter.toLowerCase()) || s.section_number.toLowerCase().includes(adActFilter.toLowerCase()) || (s.content || '').toLowerCase().includes(adActFilter.toLowerCase())) })).filter(p => p.sections.length > 0)
+    : adActParts;
+
   const filteredCtActParts = ctActFilter
     ? ctActParts.map(p => ({ ...p, sections: p.sections.filter(s => s.section_title.toLowerCase().includes(ctActFilter.toLowerCase()) || s.section_number.toLowerCase().includes(ctActFilter.toLowerCase())) })).filter(p => p.sections.length > 0)
     : ctActParts;
@@ -833,7 +845,9 @@ export default function TariffSearchPage() {
                                       ? 'Customs Tariff Act 1995'
                                       : activeView === 'ct-regs'
                                         ? 'Customs Tariff Regulations 2004'
-                                        : activeView === 'chemicals'
+                                        : activeView === 'ad-act'
+                                          ? 'Customs Tariff (Anti-Dumping) Act 1975'
+                                          : activeView === 'chemicals'
                     ? 'Chemical Index — CWC Scheduled Chemicals'
                     : activeView === 'ahecc'
                       ? 'AHECC — Export Commodity Classification'
@@ -1281,6 +1295,31 @@ export default function TariffSearchPage() {
                   >
                     <span className="font-mono text-xs font-bold text-indigo-700 w-24 shrink-0 pt-0.5">Tariff Reg</span>
                     <span className="text-sm text-gray-700">Customs Tariff Regulations 2004</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setLegislationDropdownOpen(false);
+                      setActiveView('ad-act');
+                      setActiveSchedule(null);
+                      setAdActFilter('');
+                      setExpandedAdActPart(null);
+                      if (adActData.length === 0) {
+                        setAdActLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/anti-dumping-act');
+                          const data: TdActRow[] = await res.json();
+                          setAdActData(data);
+                          const groups: TdActPartGroup[] = [];
+                          const m = new Map<string, TdActPartGroup>();
+                          for (const d of data) { let g = m.get(d.part); if (!g) { g = { part: d.part, part_title: d.part_title, sections: [] }; m.set(d.part, g); groups.push(g); } g.sections.push(d); }
+                          setAdActParts(groups);
+                        } catch { /* */ } finally { setAdActLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-orange-700 w-24 shrink-0 pt-0.5">Anti-Dump</span>
+                    <span className="text-sm text-gray-700">Customs Tariff (Anti-Dumping) Act 1975</span>
                   </button>
 
                   <div className="border-t border-gray-100 mx-3" />
@@ -2153,19 +2192,20 @@ export default function TariffSearchPage() {
               </div>
             );
           })()
-        ) : (activeView === 'ct-act' || activeView === 'ct-regs') ? (
-          // ── Customs Tariff Act / Regs ──────────────────────────
+        ) : (activeView === 'ct-act' || activeView === 'ct-regs' || activeView === 'ad-act') ? (
+          // ── Customs Tariff Act / Regs / Anti-Dumping Act ─────
           (() => {
             const isAct = activeView === 'ct-act';
-            const title = isAct ? 'Customs Tariff Act 1995' : 'Customs Tariff Regulations 2004';
-            const data = isAct ? ctActData : ctRegsData;
-            const loading = isAct ? ctActLoading : ctRegsLoading;
-            const filter = isAct ? ctActFilter : ctRegsFilter;
-            const setFilter = isAct ? setCtActFilter : setCtRegsFilter;
-            const parts = isAct ? filteredCtActParts : filteredCtRegsParts;
-            const allParts = isAct ? ctActParts : ctRegsParts;
-            const expanded = isAct ? expandedCtActPart : expandedCtRegsPart;
-            const setExpanded = isAct ? setExpandedCtActPart : setExpandedCtRegsPart;
+            const isAD = activeView === 'ad-act';
+            const title = isAD ? 'Customs Tariff (Anti-Dumping) Act 1975' : isAct ? 'Customs Tariff Act 1995' : 'Customs Tariff Regulations 2004';
+            const data = isAD ? adActData : isAct ? ctActData : ctRegsData;
+            const loading = isAD ? adActLoading : isAct ? ctActLoading : ctRegsLoading;
+            const filter = isAD ? adActFilter : isAct ? ctActFilter : ctRegsFilter;
+            const setFilter = isAD ? setAdActFilter : isAct ? setCtActFilter : setCtRegsFilter;
+            const parts = isAD ? filteredAdActParts : isAct ? filteredCtActParts : filteredCtRegsParts;
+            const allParts = isAD ? adActParts : isAct ? ctActParts : ctRegsParts;
+            const expanded = isAD ? expandedAdActPart : isAct ? expandedCtActPart : expandedCtRegsPart;
+            const setExpanded = isAD ? setExpandedAdActPart : isAct ? setExpandedCtActPart : setExpandedCtRegsPart;
             return (
               <div>
                 <div className="flex items-center justify-between mb-6">
