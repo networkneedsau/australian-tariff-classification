@@ -24,34 +24,50 @@ export class ChemicalIndexUpdater extends BaseUpdater {
   readonly targetTables = ['chemical_index'];
 
   async fetch(): Promise<ChemicalEntry[]> {
-    const $ = await fetchAndParse(CHEMICAL_INDEX_URL);
-    const entries: ChemicalEntry[] = [];
+    try {
+      const $ = await fetchAndParse(CHEMICAL_INDEX_URL);
+      const entries: ChemicalEntry[] = [];
 
-    $('table tbody tr').each((_i, tr) => {
-      const cells = $(tr).find('td');
-      if (cells.length >= 3) {
-        const casNumber = $(cells[0]).text().trim();
-        const chemicalName = $(cells[1]).text().trim();
-        const classification = $(cells[2]).text().trim();
-        const schedule = cells.length >= 4 ? $(cells[3]).text().trim() : '';
+      $('table tbody tr').each((_i, tr) => {
+        const cells = $(tr).find('td');
+        if (cells.length >= 3) {
+          const casNumber = $(cells[0]).text().trim();
+          const chemicalName = $(cells[1]).text().trim();
+          const classification = $(cells[2]).text().trim();
+          const schedule = cells.length >= 4 ? $(cells[3]).text().trim() : '';
 
-        if (chemicalName) {
-          entries.push({
-            cas_number: casNumber,
-            chemical_name: chemicalName,
-            schedule,
-            classification,
-          });
+          if (chemicalName) {
+            entries.push({
+              cas_number: casNumber,
+              chemical_name: chemicalName,
+              schedule,
+              classification,
+            });
+          }
         }
-      }
-    });
+      });
 
-    logInfo(this.sourceId, `Fetched ${entries.length} chemical index entries`);
-    return entries;
+      logInfo(this.sourceId, `Fetched ${entries.length} chemical index entries`);
+      if (entries.length > 0) return entries;
+    } catch (err: any) {
+      logInfo(this.sourceId, `Scraping failed (${err?.message ?? err}), using fallback data`);
+    }
+
+    // Return empty array — apply() will preserve existing data
+    logInfo(this.sourceId, 'No data scraped, will preserve existing data');
+    return [];
   }
 
   apply(db: Database.Database, data: ChemicalEntry[]): ApplyResult {
     const table = 'chemical_index';
+
+    // Safety: do not delete existing data if scraping returned nothing
+    if (data.length === 0) {
+      const total = (db.prepare(`SELECT COUNT(*) AS cnt FROM ${table}`).get() as { cnt: number }).cnt;
+      logInfo(this.sourceId, `No new data — preserving ${total} existing rows`);
+      return { added: 0, removed: 0, modified: 0, total };
+    }
+
     db.prepare(`DELETE FROM ${table}`).run();
 
     const insert = db.prepare(

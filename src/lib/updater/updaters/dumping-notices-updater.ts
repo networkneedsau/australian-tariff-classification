@@ -4,15 +4,19 @@ import { fetchAndParse } from '../scrapers/html-scraper';
 import { logInfo } from '../update-logger';
 
 interface DumpingNotice {
-  notice_number: string;
-  title: string;
-  date_published: string;
-  url: string;
+  commodity: string;
+  countries: string;
+  measure_type: string;
+  duty_info: string;
+  tariff_chapters: string;
+  status: string;
+  expiry_info: string;
   category: string;
+  notes: string;
 }
 
 const ABF_DUMPING_URL =
-  'https://www.abf.gov.au/importing-exporting-and-manufacturing/anti-dumping';
+  'https://www.industry.gov.au/anti-dumping-commission';
 
 /**
  * Anti-Dumping Notices updater.
@@ -31,24 +35,25 @@ export class DumpingNoticesUpdater extends BaseUpdater {
     $('table tbody tr').each((_i, tr) => {
       const cells = $(tr).find('td');
       if (cells.length >= 3) {
-        const noticeNumber = $(cells[0]).text().trim();
-        const titleEl = $(cells[1]).find('a').first();
-        const title = titleEl.text().trim() || $(cells[1]).text().trim();
-        const href = titleEl.attr('href') || '';
-        const url = href.startsWith('http')
-          ? href
-          : href
-            ? `https://www.abf.gov.au${href}`
-            : '';
-        const datePublished = $(cells[2]).text().trim();
+        const commodity = $(cells[0]).text().trim();
+        const countries = $(cells[1]).text().trim();
+        const measureType = cells.length >= 3 ? $(cells[2]).text().trim() : '';
+        const dutyInfo = cells.length >= 4 ? $(cells[3]).text().trim() : '';
+        const tariffChapters = cells.length >= 5 ? $(cells[4]).text().trim() : '';
+        const status = cells.length >= 6 ? $(cells[5]).text().trim() : 'Active';
+        const expiryInfo = cells.length >= 7 ? $(cells[6]).text().trim() : '';
 
-        if (noticeNumber) {
+        if (commodity) {
           notices.push({
-            notice_number: noticeNumber,
-            title,
-            date_published: datePublished,
-            url,
+            commodity,
+            countries,
+            measure_type: measureType,
+            duty_info: dutyInfo,
+            tariff_chapters: tariffChapters,
+            status: status || 'Active',
+            expiry_info: expiryInfo,
             category: 'anti-dumping',
+            notes: '',
           });
         }
       }
@@ -61,21 +66,21 @@ export class DumpingNoticesUpdater extends BaseUpdater {
   apply(db: Database.Database, data: DumpingNotice[]): ApplyResult {
     const table = 'dumping_notices';
 
-    // Get existing notice numbers for dedup
+    // Get existing commodities for dedup
     const existing = new Set<string>(
-      (db.prepare(`SELECT notice_number FROM ${table}`).all() as { notice_number: string }[])
-        .map((r) => r.notice_number)
+      (db.prepare(`SELECT commodity FROM ${table}`).all() as { commodity: string }[])
+        .map((r) => r.commodity)
     );
 
     const insert = db.prepare(
-      `INSERT INTO ${table} (notice_number, title, date_published, url, category)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO ${table} (commodity, countries, measure_type, duty_info, tariff_chapters, status, expiry_info, category, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
     let added = 0;
     for (const row of data) {
-      if (!existing.has(row.notice_number)) {
-        insert.run(row.notice_number, row.title, row.date_published, row.url, row.category);
+      if (!existing.has(row.commodity)) {
+        insert.run(row.commodity, row.countries, row.measure_type, row.duty_info || '', row.tariff_chapters || '', row.status, row.expiry_info || '', row.category, row.notes || '');
         added++;
       }
     }

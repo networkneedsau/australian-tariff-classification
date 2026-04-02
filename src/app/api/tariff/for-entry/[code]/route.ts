@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { logAudit } from '@/lib/audit';
 
 // Returns all fields needed to populate a customs entry line
 // when a tariff code is selected
@@ -39,6 +40,47 @@ export async function GET(
     ORDER BY country
   `).all();
 
+  // Query prohibited goods flags for this code
+  const chapter = cleanCode.replace(/\D/g, '').substring(0, 2);
+  const prohibitedRows = db.prepare(`
+    SELECT * FROM prohibited_goods_map
+    WHERE
+      (? >= tariff_code_start AND (tariff_code_end IS NULL OR ? <= tariff_code_end))
+      OR (? LIKE tariff_code_start || '%')
+      OR (? LIKE tariff_code_start || '%')
+  `).all(cleanCode, cleanCode, cleanCode, chapter) as any[];
+
+  const seenProhibited = new Set<number>();
+  const prohibited_flags = prohibitedRows.filter(r => {
+    if (seenProhibited.has(r.id)) return false;
+    seenProhibited.add(r.id);
+    return true;
+  });
+
+  // Query permit requirements for this code
+  const permitRows = db.prepare(`
+    SELECT * FROM permit_requirements
+    WHERE
+      (? >= tariff_code_start AND (tariff_code_end IS NULL OR ? <= tariff_code_end))
+      OR (? LIKE tariff_code_start || '%')
+      OR (? LIKE tariff_code_start || '%')
+  `).all(cleanCode, cleanCode, cleanCode, chapter) as any[];
+
+  const seenPermit = new Set<number>();
+  const permit_requirements = permitRows.filter(r => {
+    if (seenPermit.has(r.id)) return false;
+    seenPermit.add(r.id);
+    return true;
+  }).map(r => ({
+    agency: r.agency,
+    permit_type: r.permit_type,
+    description: r.description,
+    link_url: r.link_url,
+    notes: r.notes,
+  }));
+
+  logAudit('classification_lookup', { code: cleanCode }, request);
+
   return NextResponse.json({
     // Core tariff fields for customs entry
     tariff_code: item.code,
@@ -59,6 +101,12 @@ export async function GET(
 
     // FTA information for preference rate selection
     fta_exclusions: ftaExclusions,
+
+    // Prohibited/restricted goods flags
+    prohibited_flags,
+
+    // Permit requirements
+    permit_requirements,
 
     // Customs entry fields to auto-populate
     customs_entry_fields: {

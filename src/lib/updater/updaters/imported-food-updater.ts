@@ -25,28 +25,28 @@ export class ImportedFoodUpdater extends BaseUpdater {
   apply(db: Database.Database, data: { act: ActSection[]; reg: ActSection[] }): ApplyResult {
     let totalAdded = 0;
 
-    // Act
+    // Act — schema: part, part_title, division, division_title, section_number, section_title, content
     const actTable = 'imported_food_act';
     db.prepare(`DELETE FROM ${actTable}`).run();
     const insertAct = db.prepare(
-      `INSERT INTO ${actTable} (part, part_title, section_number, section_title, content)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO ${actTable} (part, part_title, division, division_title, section_number, section_title, content)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     );
     for (const row of data.act) {
-      insertAct.run(row.part, row.part_title, row.section_number, row.section_title, row.content || '');
+      insertAct.run(row.part, row.part_title, '', '', row.section_number, row.section_title, row.content || '');
     }
     try { db.exec(`INSERT INTO ${actTable}_fts(${actTable}_fts) VALUES('rebuild')`); } catch {}
     totalAdded += data.act.length;
 
-    // Regulation
+    // Regulation — schema: part, part_title, division, division_title, subdivision, regulation_number, regulation_title, content
     const regTable = 'imported_food_reg';
     db.prepare(`DELETE FROM ${regTable}`).run();
     const insertReg = db.prepare(
-      `INSERT INTO ${regTable} (part, part_title, section_number, section_title, content)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO ${regTable} (part, part_title, division, division_title, subdivision, regulation_number, regulation_title, content)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     );
     for (const row of data.reg) {
-      insertReg.run(row.part, row.part_title, row.section_number, row.section_title, row.content || '');
+      insertReg.run(row.part, row.part_title, '', '', '', row.section_number, row.section_title, row.content || '');
     }
     try { db.exec(`INSERT INTO ${regTable}_fts(${regTable}_fts) VALUES('rebuild')`); } catch {}
     totalAdded += data.reg.length;

@@ -38,15 +38,15 @@ export class TradeDescUpdater extends BaseUpdater {
     try { db.exec(`INSERT INTO ${actTable}_fts(${actTable}_fts) VALUES('rebuild')`); } catch {}
     totalAdded += data.act.length;
 
-    // Regulations
+    // Regulations — schema: part, part_title, division, division_title, subdivision, regulation_number, regulation_title, content
     const regsTable = 'trade_desc_regs';
     db.prepare(`DELETE FROM ${regsTable}`).run();
     const insertRegs = db.prepare(
-      `INSERT INTO ${regsTable} (part, part_title, section_number, section_title, content)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO ${regsTable} (part, part_title, division, division_title, subdivision, regulation_number, regulation_title, content)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     );
     for (const row of data.regs) {
-      insertRegs.run(row.part, row.part_title, row.section_number, row.section_title, row.content || '');
+      insertRegs.run(row.part, row.part_title, '', '', '', row.section_number, row.section_title, row.content || '');
     }
     try { db.exec(`INSERT INTO ${regsTable}_fts(${regsTable}_fts) VALUES('rebuild')`); } catch {}
     totalAdded += data.regs.length;

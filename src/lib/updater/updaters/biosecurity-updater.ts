@@ -31,11 +31,12 @@ export class BiosecurityUpdater extends BaseUpdater {
     const actTable = 'biosecurity_act';
     db.prepare(`DELETE FROM ${actTable}`).run();
     const insertAct = db.prepare(
-      `INSERT INTO ${actTable} (part, part_title, section_number, section_title, content)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO ${actTable} (chapter, chapter_title, part, part_title, division, division_title, section_range)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     );
     for (const row of data.act) {
-      insertAct.run(row.part, row.part_title, row.section_number, row.section_title, row.content || '');
+      // Map scraped data: use part as chapter, section_number as section_range (no content column)
+      insertAct.run(row.part, row.part_title, row.part, row.part_title, '', '', row.section_number || '');
     }
     try { db.exec(`INSERT INTO ${actTable}_fts(${actTable}_fts) VALUES('rebuild')`); } catch {}
     totalAdded += data.act.length;
@@ -44,11 +45,11 @@ export class BiosecurityUpdater extends BaseUpdater {
     const regsTable = 'biosecurity_regs';
     db.prepare(`DELETE FROM ${regsTable}`).run();
     const insertRegs = db.prepare(
-      `INSERT INTO ${regsTable} (part, part_title, section_number, section_title, content)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO ${regsTable} (chapter, chapter_title, part, part_title, division, division_title, section_range)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     );
     for (const row of data.regs) {
-      insertRegs.run(row.part, row.part_title, row.section_number, row.section_title, row.content || '');
+      insertRegs.run(row.part, row.part_title, row.part, row.part_title, '', '', row.section_number || '');
     }
     try { db.exec(`INSERT INTO ${regsTable}_fts(${regsTable}_fts) VALUES('rebuild')`); } catch {}
     totalAdded += data.regs.length;

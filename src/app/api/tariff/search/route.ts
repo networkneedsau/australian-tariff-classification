@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { logAudit } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -154,6 +155,8 @@ export async function GET(request: NextRequest) {
       // table may not exist
     }
   }
+
+  logAudit('search', { query: q, total: tariffTotal }, request);
 
   return NextResponse.json({
     query: q,

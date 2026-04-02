@@ -54,6 +54,116 @@ export function getDb(): Database.Database {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_tco_link_unique ON tco_tariff_links(tco_number, tariff_code);
     CREATE INDEX IF NOT EXISTS idx_tco_link_tco ON tco_tariff_links(tco_number);
     CREATE INDEX IF NOT EXISTS idx_tco_link_tariff ON tco_tariff_links(tariff_code);
+
+    -- Users and sessions
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_login_at TEXT
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      token TEXT NOT NULL UNIQUE,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+    -- Audit trail
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      action TEXT NOT NULL,
+      tariff_code TEXT,
+      details TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
+    CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
+
+    -- Exchange rates
+    CREATE TABLE IF NOT EXISTS exchange_rates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      currency_code TEXT NOT NULL,
+      currency_name TEXT NOT NULL,
+      rate_to_aud REAL NOT NULL,
+      effective_date TEXT NOT NULL,
+      period_start TEXT,
+      period_end TEXT,
+      source TEXT DEFAULT 'ABF',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_exchange_rate_unique ON exchange_rates(currency_code, effective_date);
+    CREATE INDEX IF NOT EXISTS idx_exchange_rate_code ON exchange_rates(currency_code);
+
+    -- Prohibited goods mapping
+    CREATE TABLE IF NOT EXISTS prohibited_goods_map (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tariff_code_start TEXT NOT NULL,
+      tariff_code_end TEXT,
+      regulation_type TEXT NOT NULL,
+      regulation_ref TEXT NOT NULL,
+      description TEXT,
+      severity TEXT DEFAULT 'prohibited',
+      permit_required TEXT,
+      notes TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_prohibited_tariff ON prohibited_goods_map(tariff_code_start);
+
+    -- Permit requirements
+    CREATE TABLE IF NOT EXISTS permit_requirements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tariff_code_start TEXT NOT NULL,
+      tariff_code_end TEXT,
+      agency TEXT NOT NULL,
+      permit_type TEXT NOT NULL,
+      description TEXT,
+      link_url TEXT,
+      notes TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_permit_tariff ON permit_requirements(tariff_code_start);
+
+    -- Change alerts
+    CREATE TABLE IF NOT EXISTS change_alerts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source_id TEXT NOT NULL,
+      change_type TEXT NOT NULL,
+      tariff_code TEXT,
+      summary TEXT NOT NULL,
+      details TEXT,
+      is_read INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_alert_unread ON change_alerts(is_read, created_at);
+    CREATE INDEX IF NOT EXISTS idx_alert_source ON change_alerts(source_id);
+
+    -- Rules of origin
+    CREATE TABLE IF NOT EXISTS roo_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      fta_schedule TEXT NOT NULL,
+      fta_name TEXT NOT NULL,
+      chapter_start INTEGER,
+      chapter_end INTEGER,
+      hs_code_start TEXT,
+      hs_code_end TEXT,
+      rule_type TEXT NOT NULL,
+      rule_description TEXT NOT NULL,
+      rvc_threshold REAL,
+      ctc_level TEXT,
+      specific_requirements TEXT,
+      notes TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_roo_fta ON roo_rules(fta_schedule);
+    CREATE INDEX IF NOT EXISTS idx_roo_hs ON roo_rules(hs_code_start);
   `);
 
   // Auto-populate tco_tariff_links from existing tco_references in tariff_classifications

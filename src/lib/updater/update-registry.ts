@@ -23,6 +23,7 @@ import { TradeDescUpdater } from './updaters/trade-desc-updater';
 import { CustomsRegsUpdater } from './updaters/customs-regs-updater';
 import { AntiDumpingActUpdater } from './updaters/anti-dumping-act-updater';
 import { ProhibitedExportsUpdater } from './updaters/prohibited-exports-updater';
+import { ExchangeRatesUpdater } from './updaters/exchange-rates-updater';
 
 const SRC = 'registry';
 
@@ -60,6 +61,7 @@ export function getUpdaterRegistry(): Map<string, BaseUpdater> {
     new CustomsRegsUpdater(),        // 16. Customs Regulations
     new AntiDumpingActUpdater(),     // 17. Anti-Dumping Act
     new ProhibitedExportsUpdater(),  // 18. Prohibited Exports Regs
+    new ExchangeRatesUpdater(),      // 19. ABF Exchange Rates
   ];
 
   for (const u of updaters) {

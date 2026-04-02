@@ -20,15 +20,15 @@ export class ProhibitedImportsUpdater extends BaseUpdater {
     db.prepare(`DELETE FROM ${table}`).run();
 
     const insert = db.prepare(
-      `INSERT INTO ${table} (part, part_title, section_number, section_title, content)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO ${table} (part, part_title, regulation_number, regulation_title, category, content)
+       VALUES (?, ?, ?, ?, ?, ?)`
     );
 
     for (const row of data) {
-      insert.run(row.part, row.part_title, row.section_number, row.section_title, row.content || '');
+      insert.run(row.part, row.part_title, row.section_number, row.section_title, '', row.content || '');
     }
 
-    try { db.exec(`INSERT INTO ${table}_fts(${table}_fts) VALUES('rebuild')`); } catch {}
+    try { db.exec(`INSERT INTO prohibited_imports_fts(prohibited_imports_fts) VALUES('rebuild')`); } catch {}
 
     return { added: data.length, removed: 0, modified: 0, total: data.length };
   }

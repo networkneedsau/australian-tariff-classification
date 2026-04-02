@@ -20,15 +20,16 @@ export class GstActUpdater extends BaseUpdater {
     db.prepare(`DELETE FROM ${table}`).run();
 
     const insert = db.prepare(
-      `INSERT INTO ${table} (part, part_title, section_number, section_title, content)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO ${table} (chapter, chapter_title, part, part_title, division, division_title, content)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     );
 
     for (const row of data) {
-      insert.run(row.part, row.part_title, row.section_number, row.section_title, row.content || '');
+      // Map scraped part as chapter if no separate chapter data available
+      insert.run(row.part, row.part_title, row.part, row.part_title, '', '', row.content || '');
     }
 
-    try { db.exec(`INSERT INTO ${table}_fts(${table}_fts) VALUES('rebuild')`); } catch {}
+    try { db.exec(`INSERT INTO gst_act_fts(gst_act_fts) VALUES('rebuild')`); } catch {}
 
     return { added: data.length, removed: 0, modified: 0, total: data.length };
   }

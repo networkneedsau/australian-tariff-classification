@@ -188,6 +188,24 @@ export abstract class BaseUpdater {
        WHERE id = ?`
     ).run(completedAt, result.total, result.added, result.removed, result.modified, logId);
 
+    // Insert change alert if there were meaningful changes
+    if (result.added > 0 || result.removed > 0) {
+      try {
+        db.prepare(
+          `INSERT INTO change_alerts (source_id, change_type, summary, details)
+           VALUES (?, ?, ?, ?)`
+        ).run(
+          this.sourceId,
+          'data_update',
+          `${this.sourceName}: ${result.added} added, ${result.removed} removed, ${result.modified} modified`,
+          JSON.stringify(result)
+        );
+      } catch {
+        // Non-fatal: don't fail the update if alert insert fails
+        logWarn(this.sourceId, 'Failed to insert change alert');
+      }
+    }
+
     logInfo(
       this.sourceId,
       `Update complete — added: ${result.added}, removed: ${result.removed}, modified: ${result.modified}, total: ${result.total}`

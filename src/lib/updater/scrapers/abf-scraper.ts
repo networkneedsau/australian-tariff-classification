@@ -77,6 +77,7 @@ export async function scrapeSchedule1(): Promise<CountryEntry[]> {
 
 /**
  * Scrape Schedule 3 index page and return section links.
+ * The ABF structure is: /schedule-3 → section-i through section-xxi
  */
 export async function scrapeSchedule3Sections(): Promise<SectionLink[]> {
   const url = `${ABF_BASE}/schedule-3`;
@@ -84,19 +85,21 @@ export async function scrapeSchedule3Sections(): Promise<SectionLink[]> {
   const $ = await fetchAndParse(url);
 
   const links: SectionLink[] = [];
+  const seen = new Set<string>();
 
-  $('a[href*="schedule-3"]').each((_i, el) => {
+  // Find links to section pages (e.g. /schedule-3/section-i)
+  $('a[href*="schedule-3/section-"]').each((_i, el) => {
     const href = $(el).attr('href');
     const text = $(el).text().trim();
-    if (href && text) {
-      // Try to extract a section number from the link text
-      const match = text.match(/Section\s+(\S+)/i);
-      const sectionNumber = match ? match[1] : text;
-      const fullUrl = href.startsWith('http')
-        ? href
-        : `https://www.abf.gov.au${href}`;
-      links.push({ sectionNumber, title: text, url: fullUrl });
-    }
+    if (!href || !text) return;
+    const fullUrl = href.startsWith('http') ? href : `https://www.abf.gov.au${href}`;
+    if (seen.has(fullUrl)) return;
+    seen.add(fullUrl);
+
+    // Extract roman numeral from URL (section-i, section-ii, etc.)
+    const sectionMatch = fullUrl.match(/section-([ivxlcdm]+)$/i);
+    const sectionNumber = sectionMatch ? sectionMatch[1].toUpperCase() : text;
+    links.push({ sectionNumber, title: text, url: fullUrl });
   });
 
   logInfo(SRC, `Schedule 3 — ${links.length} section links found`);
@@ -104,47 +107,137 @@ export async function scrapeSchedule3Sections(): Promise<SectionLink[]> {
 }
 
 /**
+ * For a section page, find all chapter links within it.
+ * Section pages contain links like /schedule-3/section-i/chapter-1
+ */
+export async function scrapeSchedule3ChapterLinks(sectionUrl: string): Promise<string[]> {
+  logInfo(SRC, `Fetching chapter links from section: ${sectionUrl}`);
+  const $ = await fetchAndParse(sectionUrl);
+
+  const chapterUrls: string[] = [];
+  const seen = new Set<string>();
+
+  $('a[href*="chapter-"]').each((_i, el) => {
+    const href = $(el).attr('href');
+    if (!href) return;
+    const fullUrl = href.startsWith('http') ? href : `https://www.abf.gov.au${href}`;
+    if (seen.has(fullUrl)) return;
+    seen.add(fullUrl);
+    chapterUrls.push(fullUrl);
+  });
+
+  logInfo(SRC, `Section has ${chapterUrls.length} chapter links`);
+  return chapterUrls;
+}
+
+export interface Schedule3Row extends TariffRow {
+  chapterNumber: string;
+  chapterTitle: string;
+  headingCode: string;
+  headingDescription: string;
+}
+
+/**
  * Scrape a single Schedule 3 chapter page and return tariff row data.
+ * Chapter pages have the actual classification tables with columns:
+ * Reference Number | Statistical Code | Unit | Goods | Rate# | Tariff concession orders
  */
 export async function scrapeSchedule3Chapter(
   url: string
-): Promise<TariffRow[]> {
+): Promise<Schedule3Row[]> {
   logInfo(SRC, `Fetching chapter from ${url}`);
   const $ = await fetchAndParse(url);
 
-  const rows: TariffRow[] = [];
+  const rows: Schedule3Row[] = [];
 
-  $('table')
-    .find('tbody tr')
-    .each((_i, tr) => {
-      const cells = $(tr).find('td');
-      if (cells.length >= 3) {
-        const code = $(cells[0]).text().trim();
-        const statisticalCode =
-          cells.length >= 5 ? $(cells[1]).text().trim() || null : null;
+  // Extract chapter info from the page heading
+  const pageTitle = $('h1, h2').first().text().trim();
+  const chapterMatch = pageTitle.match(/Chapter\s+(\d+)\s*[-–—]\s*(.*)/i);
+  const chapterNumber = chapterMatch ? chapterMatch[1] : '';
+  const chapterTitle = chapterMatch ? chapterMatch[2].trim() : pageTitle;
 
-        // Depending on column count, description / unit / duty are offset
-        const descIdx = cells.length >= 5 ? 2 : 1;
-        const unitIdx = cells.length >= 5 ? 3 : 2;
-        const dutyIdx = cells.length >= 5 ? 4 : cells.length - 1;
+  let currentHeadingCode = '';
+  let currentHeadingDesc = '';
 
-        const description = $(cells[descIdx]).text().trim();
-        const unit =
-          unitIdx < cells.length
-            ? $(cells[unitIdx]).text().trim() || null
-            : null;
-        const dutyRate =
-          dutyIdx < cells.length
-            ? $(cells[dutyIdx]).text().trim() || null
-            : null;
+  // Process all tables on the page (each heading group has its own table)
+  $('table').each((_ti, table) => {
+    $(table).find('tr').each((_i, tr) => {
+      const cells = $(tr).find('td, th');
+      if (cells.length < 2) return;
 
-        if (code) {
-          rows.push({ code, statisticalCode, description, unit, dutyRate });
+      // Check if this is a header row (th cells or dark background)
+      const isHeader = $(tr).find('th').length > 0;
+      if (isHeader) return;
+
+      const firstCell = $(cells[0]).text().replace(/[\u200B-\u200D\uFEFF\u00AD\u2605]/g, '').trim();
+
+      // Skip empty rows
+      if (!firstCell) return;
+
+      // Check if this is a heading row (4-digit code like "0101" with no stat code)
+      if (/^\d{4}$/.test(firstCell.replace(/\./g, '').substring(0, 4)) && firstCell.length <= 7 && !firstCell.includes('.')) {
+        currentHeadingCode = firstCell;
+        // Description is in a later cell
+        for (let ci = 1; ci < cells.length; ci++) {
+          const txt = $(cells[ci]).text().trim();
+          if (txt && txt.length > 2) { currentHeadingDesc = txt; break; }
+        }
+        return;
+      }
+
+      // Check if this is a subheading or classification row (has dots like "0101.21.00")
+      if (/^\d{4}\./.test(firstCell)) {
+        // This is a classification row
+        // ABF table structure: Reference Number | Statistical Code | Unit | Goods | Rate# | TCOs
+        const code = firstCell;
+
+        let statisticalCode: string | null = null;
+        let description = '';
+        let unit: string | null = null;
+        let dutyRate: string | null = null;
+
+        if (cells.length >= 6) {
+          // Full row: RefNum | Stat | Unit | Goods | Rate | TCO
+          statisticalCode = $(cells[1]).text().trim() || null;
+          unit = $(cells[2]).text().trim() || null;
+          description = $(cells[3]).text().trim();
+          dutyRate = $(cells[4]).text().trim() || null;
+        } else if (cells.length >= 4) {
+          // Shorter row: RefNum | Stat? | Goods | Rate
+          const secondCell = $(cells[1]).text().trim();
+          if (/^\d{1,3}$/.test(secondCell)) {
+            statisticalCode = secondCell;
+            description = $(cells[2]).text().trim();
+            dutyRate = cells.length >= 4 ? $(cells[3]).text().trim() || null : null;
+          } else {
+            description = secondCell;
+            dutyRate = $(cells[2]).text().trim() || null;
+          }
+        } else if (cells.length >= 2) {
+          // Minimal row: RefNum | Goods
+          description = $(cells[1]).text().trim();
+        }
+
+        if (code && (description || statisticalCode)) {
+          // Clean up zero-width characters
+          const cleanCode = code.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '').trim();
+          rows.push({
+            code: cleanCode,
+            statisticalCode: statisticalCode?.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '').trim() || null,
+            description,
+            unit: unit === 'No' || unit === 'Kg' || unit === 'L' || unit === 'M' || unit === 'M2' || unit === 'M3' ? unit : unit,
+            dutyRate,
+            chapterNumber,
+            chapterTitle,
+            headingCode: currentHeadingCode || cleanCode.substring(0, 4),
+            headingDescription: currentHeadingDesc,
+          });
         }
       }
     });
+  });
 
-  logInfo(SRC, `Chapter scraped — ${rows.length} rows`);
+  logInfo(SRC, `Chapter ${chapterNumber} scraped — ${rows.length} classifications`);
   return rows;
 }
 

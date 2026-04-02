@@ -24,34 +24,50 @@ export class AheccUpdater extends BaseUpdater {
   readonly targetTables = ['ahecc_chapters'];
 
   async fetch(): Promise<AheccChapter[]> {
-    const $ = await fetchAndParse(AHECC_URL);
-    const chapters: AheccChapter[] = [];
+    try {
+      const $ = await fetchAndParse(AHECC_URL);
+      const chapters: AheccChapter[] = [];
 
-    $('table tbody tr').each((_i, tr) => {
-      const cells = $(tr).find('td');
-      if (cells.length >= 2) {
-        const chapterCode = $(cells[0]).text().trim();
-        const chapterTitle = $(cells[1]).text().trim();
-        const section = cells.length >= 3 ? $(cells[2]).text().trim() : '';
-        const notes = cells.length >= 4 ? $(cells[3]).text().trim() : '';
+      $('table tbody tr').each((_i, tr) => {
+        const cells = $(tr).find('td');
+        if (cells.length >= 2) {
+          const chapterCode = $(cells[0]).text().trim();
+          const chapterTitle = $(cells[1]).text().trim();
+          const section = cells.length >= 3 ? $(cells[2]).text().trim() : '';
+          const notes = cells.length >= 4 ? $(cells[3]).text().trim() : '';
 
-        if (chapterCode) {
-          chapters.push({
-            chapter_code: chapterCode,
-            chapter_title: chapterTitle,
-            section,
-            notes,
-          });
+          if (chapterCode) {
+            chapters.push({
+              chapter_code: chapterCode,
+              chapter_title: chapterTitle,
+              section,
+              notes,
+            });
+          }
         }
-      }
-    });
+      });
 
-    logInfo(this.sourceId, `Fetched ${chapters.length} AHECC chapters`);
-    return chapters;
+      logInfo(this.sourceId, `Fetched ${chapters.length} AHECC chapters`);
+      if (chapters.length > 0) return chapters;
+    } catch (err: any) {
+      logInfo(this.sourceId, `Scraping failed (${err?.message ?? err}), using fallback data`);
+    }
+
+    // Return empty array — apply() will preserve existing data
+    logInfo(this.sourceId, 'No data scraped, will preserve existing data');
+    return [];
   }
 
   apply(db: Database.Database, data: AheccChapter[]): ApplyResult {
     const table = 'ahecc_chapters';
+
+    // Safety: do not delete existing data if scraping returned nothing
+    if (data.length === 0) {
+      const total = (db.prepare(`SELECT COUNT(*) AS cnt FROM ${table}`).get() as { cnt: number }).cnt;
+      logInfo(this.sourceId, `No new data — preserving ${total} existing rows`);
+      return { added: 0, removed: 0, modified: 0, total };
+    }
+
     db.prepare(`DELETE FROM ${table}`).run();
 
     const insert = db.prepare(

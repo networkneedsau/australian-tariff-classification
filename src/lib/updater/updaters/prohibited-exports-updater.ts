@@ -20,12 +20,12 @@ export class ProhibitedExportsUpdater extends BaseUpdater {
     db.prepare(`DELETE FROM ${table}`).run();
 
     const insert = db.prepare(
-      `INSERT INTO ${table} (part, part_title, section_number, section_title, content)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO ${table} (part, part_title, division, division_title, regulation_number, regulation_title, content)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     );
 
     for (const row of data) {
-      insert.run(row.part, row.part_title, row.section_number, row.section_title, row.content || '');
+      insert.run(row.part, row.part_title, '', '', row.section_number, row.section_title, row.content || '');
     }
 
     try { db.exec(`INSERT INTO ${table}_fts(${table}_fts) VALUES('rebuild')`); } catch {}

@@ -1,6 +1,11 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { isBookmarked, addBookmark, removeBookmark } from '@/lib/bookmarks';
+import { downloadCsv } from '@/lib/csv-export';
+import BookmarkPanel from '@/app/components/BookmarkPanel';
+import AlertBell from '@/app/components/AlertBell';
+import IcsExportButton from '@/app/components/IcsExportButton';
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -47,6 +52,8 @@ interface EntryResponse {
   tco_references: string[];
   fta_exclusions: { schedule: string; fta_name: string; hs_code: string; duty_rate: string | null }[];
   customs_entry_fields: CustomsEntryFields;
+  prohibited_flags?: { regulation_type: string; regulation_ref: string; description: string; severity: string; permit_required: string | null; notes: string | null }[];
+  permit_requirements?: { agency: string; permit_type: string; description: string; link_url: string | null; notes: string | null }[];
 }
 
 interface ScheduleInfo {
@@ -367,6 +374,9 @@ export default function TariffSearchPage() {
   const [customsFields, setCustomsFields] = useState<CustomsEntryFields | null>(null);
   const [customsValue, setCustomsValue] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Bookmark panel state
+  const [bookmarkPanelOpen, setBookmarkPanelOpen] = useState(false);
 
   // TCO linking state
   const [expandedTco, setExpandedTco] = useState<string | null>(null);
@@ -1986,13 +1996,24 @@ export default function TariffSearchPage() {
               )}
             </div>
 
-            {/* Admin link */}
-            <a
-              href="/admin"
-              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-              Admin
+            {/* Tool links */}
+            <a href="/calculator" className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+              Calculator
+            </a>
+            <a href="/bulk" className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+              Bulk
+            </a>
+            <a href="/wizard" className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              Origin
+            </a>
+
+            {/* Alerts + Admin */}
+            <AlertBell />
+            <a href="/admin" className="px-2 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs transition-colors" title="Admin">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             </a>
 
           </div>
@@ -2039,9 +2060,23 @@ export default function TariffSearchPage() {
                   {/* Tariff classification results */}
                   {results.length > 0 && (
                     <div className="mb-4">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">
-                        Tariff Classifications ({total})
-                      </p>
+                      <div className="flex items-center justify-between mb-2 px-1">
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Tariff Classifications ({total})
+                        </p>
+                        <button
+                          onClick={() => downloadCsv('tariff-search-results.csv', results, [
+                            {key: 'code', header: 'HS Code'}, {key: 'statistical_code', header: 'Stat Code'},
+                            {key: 'description', header: 'Description'}, {key: 'unit', header: 'Unit'},
+                            {key: 'duty_rate', header: 'Duty Rate'}, {key: 'chapter_number', header: 'Chapter'},
+                            {key: 'section_number', header: 'Section'},
+                          ])}
+                          className="text-[10px] text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                          Export CSV
+                        </button>
+                      </div>
                       {results.map((r) => (
                         <button
                           key={r.id}
@@ -2270,6 +2305,48 @@ export default function TariffSearchPage() {
                       </div>
                     </div>
 
+                    {/* Prohibited goods warning */}
+                    {selectedEntry.prohibited_flags && selectedEntry.prohibited_flags.length > 0 && (
+                      <div className="p-4">
+                        {selectedEntry.prohibited_flags.map((pf, i) => (
+                          <div key={i} className={`p-3 rounded-lg mb-2 border flex items-start gap-2 ${
+                            pf.severity === 'prohibited' ? 'bg-red-50 border-red-300' :
+                            pf.severity === 'restricted' ? 'bg-orange-50 border-orange-300' :
+                            'bg-yellow-50 border-yellow-300'
+                          }`}>
+                            <svg className={`w-5 h-5 shrink-0 mt-0.5 ${
+                              pf.severity === 'prohibited' ? 'text-red-600' : pf.severity === 'restricted' ? 'text-orange-600' : 'text-yellow-600'
+                            }`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+                            <div className="flex-1">
+                              <div className={`text-xs font-bold uppercase ${
+                                pf.severity === 'prohibited' ? 'text-red-800' : pf.severity === 'restricted' ? 'text-orange-800' : 'text-yellow-800'
+                              }`}>{pf.severity} — {pf.regulation_ref}</div>
+                              <p className="text-xs text-gray-700 mt-0.5">{pf.description}</p>
+                              {pf.permit_required && <p className="text-xs text-gray-500 mt-0.5">Permit: {pf.permit_required}</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Permit requirements */}
+                    {selectedEntry.permit_requirements && selectedEntry.permit_requirements.length > 0 && (
+                      <div className="p-4">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          <h4 className="text-xs font-semibold text-blue-800 uppercase mb-1.5 flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                            Permits Required
+                          </h4>
+                          {selectedEntry.permit_requirements.map((pr, i) => (
+                            <div key={i} className="text-xs text-blue-700 py-1 flex items-center gap-2">
+                              <span className="font-semibold shrink-0">{pr.agency}</span>
+                              <span>{pr.permit_type}: {pr.description}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Auto-populated fields */}
                     {customsFields && (
                       <div className="p-4 space-y-3">
@@ -2459,6 +2536,28 @@ export default function TariffSearchPage() {
                             </div>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* ICS XML Export */}
+                    {customsFields && (
+                      <div className="p-4 border-t border-gray-100">
+                        <IcsExportButton
+                          entryFields={selectedEntry ? {
+                            tariffCode: selectedEntry.tariff_code,
+                            statisticalCode: selectedEntry.statistical_code || '',
+                            goodsDescription: selectedEntry.description,
+                            countryOfOrigin: '',
+                            customsValue: customsValue ? parseFloat(customsValue) : 0,
+                            currency: 'AUD',
+                            dutyRate: selectedEntry.duty_rate || 'Free',
+                            dutyAmount: customsFields.duty_payable || 0,
+                            gstAmount: gstAmount || 0,
+                            unitOfQuantity: customsFields.unit_of_quantity || 'NO',
+                            quantity: 1,
+                          } : null}
+                          disabled={!selectedEntry}
+                        />
                       </div>
                     )}
                   </div>
@@ -3973,6 +4072,11 @@ export default function TariffSearchPage() {
           </div>
         ) : null}
       </main>
+
+      {/* Bookmark Panel */}
+      <BookmarkPanel
+        onSelect={(code) => selectTariff(code)}
+      />
     </div>
   );
 }

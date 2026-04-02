@@ -6,13 +6,14 @@ import { logInfo } from '../update-logger';
 interface CustomsNotice {
   notice_number: string;
   title: string;
-  date_published: string;
-  url: string;
+  year: number;
   category: string;
+  summary: string;
+  effective_date: string;
 }
 
 const ABF_NOTICES_URL =
-  'https://www.abf.gov.au/importing-exporting-and-manufacturing/importing/customs-notices';
+  'https://www.abf.gov.au/help-and-support/notices';
 
 /**
  * Customs Notices updater.
@@ -34,21 +35,19 @@ export class CustomsNoticesUpdater extends BaseUpdater {
         const noticeNumber = $(cells[0]).text().trim();
         const titleEl = $(cells[1]).find('a').first();
         const title = titleEl.text().trim() || $(cells[1]).text().trim();
-        const href = titleEl.attr('href') || '';
-        const url = href.startsWith('http')
-          ? href
-          : href
-            ? `https://www.abf.gov.au${href}`
-            : '';
-        const datePublished = $(cells[2]).text().trim();
+        const dateText = $(cells[2]).text().trim();
+        // Extract year from notice number (e.g., "ACN 2025/05") or date text
+        const yearMatch = noticeNumber.match(/(\d{4})/) || dateText.match(/(\d{4})/);
+        const year = yearMatch ? parseInt(yearMatch[1], 10) : new Date().getFullYear();
 
         if (noticeNumber) {
           notices.push({
             notice_number: noticeNumber,
             title,
-            date_published: datePublished,
-            url,
+            year,
             category: 'customs',
+            summary: title,
+            effective_date: dateText,
           });
         }
       }
@@ -68,14 +67,14 @@ export class CustomsNoticesUpdater extends BaseUpdater {
     );
 
     const insert = db.prepare(
-      `INSERT INTO ${table} (notice_number, title, date_published, url, category)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO ${table} (notice_number, title, year, category, summary, effective_date)
+       VALUES (?, ?, ?, ?, ?, ?)`
     );
 
     let added = 0;
     for (const row of data) {
       if (!existing.has(row.notice_number)) {
-        insert.run(row.notice_number, row.title, row.date_published, row.url, row.category);
+        insert.run(row.notice_number, row.title, row.year, row.category, row.summary || '', row.effective_date || '');
         added++;
       }
     }
