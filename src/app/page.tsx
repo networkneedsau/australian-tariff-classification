@@ -999,10 +999,10 @@ export default function TariffSearchPage() {
           </div>
 
           {/* Dropdowns row */}
-          <div className="flex items-center gap-2">
+          <div className="relative flex items-center gap-2">
 
             {/* ── Dropdown 1: Legislation ── */}
-            <div className="relative" ref={legislationDropdownRef}>
+            <div className="static" ref={legislationDropdownRef}>
               <button
                 onClick={() => { setLegislationDropdownOpen(!legislationDropdownOpen); setDropdownOpen(false); setComplianceDropdownOpen(false); setReferenceDropdownOpen(false); }}
                 className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors flex items-center gap-2"
@@ -1013,7 +1013,7 @@ export default function TariffSearchPage() {
                 </svg>
               </button>
               {legislationDropdownOpen && (
-                <div className="absolute left-0 mt-2 w-[700px] bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[85vh] overflow-y-auto">
+                <div className="absolute right-0 mt-2 w-[700px] bg-white rounded-lg shadow-xl border border-gray-200 z-[60] max-h-[80vh] overflow-y-auto">
                   <div className="grid grid-cols-2 gap-0">
                     <div>
                       {/* Customs section */}
@@ -1533,7 +1533,7 @@ export default function TariffSearchPage() {
             </div>
 
             {/* ── Dropdown 2: Classification ── */}
-            <div className="relative" ref={dropdownRef}>
+            <div className="static" ref={dropdownRef}>
               <button
                 onClick={() => { setDropdownOpen(!dropdownOpen); setLegislationDropdownOpen(false); setComplianceDropdownOpen(false); setReferenceDropdownOpen(false); }}
                 className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors flex items-center gap-2"
@@ -1545,7 +1545,7 @@ export default function TariffSearchPage() {
               </button>
 
               {dropdownOpen && (
-                <div className="absolute left-0 mt-2 w-[600px] bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[85vh] overflow-y-auto">
+                <div className="absolute right-0 mt-2 w-[600px] bg-white rounded-lg shadow-xl border border-gray-200 z-[60] max-h-[80vh] overflow-y-auto">
                   <div className="grid grid-cols-2 gap-0">
                     <div>
                       {/* Main Schedules */}
