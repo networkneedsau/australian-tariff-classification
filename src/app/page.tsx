@@ -201,6 +201,25 @@ interface IntlObPartGroup { part: string; part_title: string; regulations: IntlO
 // ── Customs (Prohibited Exports) Regulations 1958 ─────────────────
 // Reuses IntlObRow/IntlObPartGroup interfaces (same structure)
 
+// ── AQIS Producer ─────────────────────────────────────────────────
+
+interface AqisRow {
+  id: number;
+  category: string;
+  category_title: string;
+  item_type: string;
+  item_title: string;
+  description: string | null;
+  requirements: string | null;
+  notes: string | null;
+}
+
+interface AqisCategoryGroup {
+  category: string;
+  category_title: string;
+  items: AqisRow[];
+}
+
 // ── Customs Notices ───────────────────────────────────────────────
 
 interface CustomsNoticeRow {
@@ -350,7 +369,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs' | 'ad-act' | 'il-act' | 'il-reg' | 'ifc-act' | 'ifc-reg' | 'acn'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs' | 'ad-act' | 'il-act' | 'il-reg' | 'ifc-act' | 'ifc-reg' | 'acn' | 'aqis'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -455,6 +474,12 @@ export default function TariffSearchPage() {
   const [tdRegsLoading, setTdRegsLoading] = useState(false);
   const [expandedTdSection, setExpandedTdSection] = useState<number | null>(null);
 
+  // AQIS Producer data
+  const [aqisData, setAqisData] = useState<AqisRow[]>([]);
+  const [aqisCategories, setAqisCategories] = useState<AqisCategoryGroup[]>([]);
+  const [expandedAqisCat, setExpandedAqisCat] = useState<string | null>(null);
+  const [aqisLoading, setAqisLoading] = useState(false);
+
   // Customs Notices data
   const [acnData, setAcnData] = useState<CustomsNoticeRow[]>([]);
   const [acnYears, setAcnYears] = useState<NoticeYearGroup[]>([]);
@@ -526,6 +551,7 @@ export default function TariffSearchPage() {
   const [ifcActFilter, setIfcActFilter] = useState('');
   const [ifcRegFilter, setIfcRegFilter] = useState('');
   const [acnFilter, setAcnFilter] = useState('');
+  const [aqisFilter, setAqisFilter] = useState('');
   const [gstActFilter, setGstActFilter] = useState('');
   const [gstRegsFilter, setGstRegsFilter] = useState('');
   const [bioActFilter, setBioActFilter] = useState('');
@@ -771,6 +797,10 @@ export default function TariffSearchPage() {
     ? ilRegParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_number.toLowerCase().includes(ilRegFilter.toLowerCase()) || r.regulation_title.toLowerCase().includes(ilRegFilter.toLowerCase()) || (r.content || '').toLowerCase().includes(ilRegFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
     : ilRegParts;
 
+  const filteredAqisCategories = aqisFilter
+    ? aqisCategories.map(c => ({ ...c, items: c.items.filter(i => i.item_title.toLowerCase().includes(aqisFilter.toLowerCase()) || (i.description || '').toLowerCase().includes(aqisFilter.toLowerCase()) || (i.requirements || '').toLowerCase().includes(aqisFilter.toLowerCase()) || (i.notes || '').toLowerCase().includes(aqisFilter.toLowerCase())) })).filter(c => c.items.length > 0)
+    : aqisCategories;
+
   const filteredAcnYears = acnFilter
     ? acnYears.map(y => ({ ...y, notices: y.notices.filter(n => n.notice_number.toLowerCase().includes(acnFilter.toLowerCase()) || n.title.toLowerCase().includes(acnFilter.toLowerCase()) || n.category.toLowerCase().includes(acnFilter.toLowerCase()) || (n.summary || '').toLowerCase().includes(acnFilter.toLowerCase())) })).filter(y => y.notices.length > 0)
     : acnYears;
@@ -937,7 +967,9 @@ export default function TariffSearchPage() {
                         ? 'Anti-Dumping & Countervailing Duty Notices'
                         : activeView === 'acn'
                           ? 'Australian Customs Notices'
-                          : activeView === 'reffiles'
+                          : activeView === 'aqis'
+                            ? 'AQIS Producer — Approved Establishments'
+                            : activeView === 'reffiles'
                           ? 'ABF Software Reference Files'
                           : activeView === 'cpquestions'
                             ? 'Community Protection Questions'
@@ -1024,6 +1056,37 @@ export default function TariffSearchPage() {
                   >
                     <span className="font-mono text-xs font-bold text-orange-700 w-24 shrink-0 pt-0.5">ACN</span>
                     <span className="text-sm text-gray-700">Australian Customs Notices & Gazettes</span>
+                  </button>
+
+                  <div className="border-t border-gray-100 mx-3" />
+
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">AQIS / Biosecurity</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false);
+                      setActiveView('aqis');
+                      setActiveSchedule(null);
+                      setAqisFilter('');
+                      setExpandedAqisCat(null);
+                      if (aqisData.length === 0) {
+                        setAqisLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/aqis-producer');
+                          const data: AqisRow[] = await res.json();
+                          setAqisData(data);
+                          const groups: AqisCategoryGroup[] = [];
+                          const m = new Map<string, AqisCategoryGroup>();
+                          for (const d of data) { let g = m.get(d.category); if (!g) { g = { category: d.category, category_title: d.category_title, items: [] }; m.set(d.category, g); groups.push(g); } g.items.push(d); }
+                          setAqisCategories(groups);
+                        } catch { /* */ } finally { setAqisLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-teal-700 w-24 shrink-0 pt-0.5">AQIS</span>
+                    <span className="text-sm text-gray-700">AQIS Producer — Approved Establishments</span>
                   </button>
 
                   <div className="border-t border-gray-100 mx-3" />
@@ -2827,6 +2890,60 @@ export default function TariffSearchPage() {
                             </div>
                             {n.summary && <p className="text-xs text-gray-500 ml-31 pl-28">{n.summary}</p>}
                             {n.effective_date && <p className="text-xs text-blue-600 ml-31 pl-28 mt-0.5">Effective: {n.effective_date}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : activeView === 'aqis' ? (
+          // ── AQIS Producer ──────────────────────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                Back to Search
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">AQIS Producer — Approved Establishments</h2>
+              <p className="text-xs text-gray-500 mb-3">Commodity programmes, establishment types, approved arrangements, and registration data managed by DAFF (formerly AQIS)</p>
+              <input type="text" value={aqisFilter} onChange={(e) => setAqisFilter(e.target.value)} placeholder="Search by commodity, establishment type, requirements..." className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" />
+              <p className="text-xs text-gray-400 mt-2">{filteredAqisCategories.reduce((s, c) => s + c.items.length, 0)} of {aqisData.length} entries</p>
+            </div>
+
+            {aqisLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredAqisCategories.map((cg) => (
+                  <div key={cg.category} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button onClick={() => setExpandedAqisCat(expandedAqisCat === cg.category ? null : cg.category)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-teal-50 transition-colors">
+                      <div>
+                        <span className="font-semibold text-teal-800">{cg.category_title}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{cg.items.length} items</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedAqisCat === cg.category ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </button>
+                    {expandedAqisCat === cg.category && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {cg.items.map((item) => (
+                          <div key={item.id} className="px-5 py-3 text-sm">
+                            <div className="flex items-start justify-between mb-1">
+                              <span className="font-medium text-gray-800">{item.item_title}</span>
+                              <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded shrink-0 ml-2">{item.item_type}</span>
+                            </div>
+                            {item.description && <p className="text-xs text-gray-600 mb-1">{item.description}</p>}
+                            {item.requirements && <p className="text-xs text-gray-500"><span className="font-medium">Requirements:</span> {item.requirements}</p>}
+                            {item.notes && <p className="text-xs text-gray-400 mt-1 italic">{item.notes}</p>}
                           </div>
                         ))}
                       </div>
