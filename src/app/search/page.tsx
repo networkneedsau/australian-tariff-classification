@@ -6,6 +6,7 @@ import { downloadCsv } from '@/lib/csv-export';
 import BookmarkPanel from '@/app/components/BookmarkPanel';
 import AlertBell from '@/app/components/AlertBell';
 import IcsExportButton from '@/app/components/IcsExportButton';
+import LegalTextRenderer from '@/app/components/LegalTextRenderer';
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -2694,8 +2695,8 @@ export default function TariffSearchPage() {
                               </div>
                             </button>
                             {expandedActSection === s.id && s.content && (
-                              <div className="mt-2 ml-16 pl-4 border-l-2 border-blue-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">
-                                {s.content}
+                              <div className="mt-2 ml-16 pl-4 border-l-2 border-blue-200">
+                                <LegalTextRenderer content={s.content} />
                               </div>
                             )}
                           </div>
@@ -2772,8 +2773,8 @@ export default function TariffSearchPage() {
                               </div>
                             </button>
                             {expandedRegSection === r.id && r.content && (
-                              <div className="mt-2 ml-24 pl-4 border-l-2 border-blue-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">
-                                {r.content}
+                              <div className="mt-2 ml-24 pl-4 border-l-2 border-blue-200 ">
+                                <LegalTextRenderer content={r.content} />
                               </div>
                             )}
                           </div>
@@ -2831,8 +2832,8 @@ export default function TariffSearchPage() {
                               </div>
                             </button>
                             {expandedGstActDiv === d.id && d.content && (
-                              <div className="mt-2 ml-28 pl-4 border-l-2 border-green-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
-                                {d.content}
+                              <div className="mt-2 ml-28 pl-4 border-l-2 border-green-200 max-h-96 overflow-y-auto">
+                                <LegalTextRenderer content={d.content} />
                               </div>
                             )}
                           </div>
@@ -3018,7 +3019,7 @@ export default function TariffSearchPage() {
                                   </div>
                                 </button>
                                 {expandedCtSection === s.id && s.content && (
-                                  <div className="mt-2 ml-20 pl-4 border-l-2 border-indigo-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">{s.content}</div>
+                                  <div className="mt-2 ml-20 pl-4 border-l-2 border-indigo-200 "><LegalTextRenderer content={s.content} /></div>
                                 )}
                               </div>
                             ))}
@@ -3071,7 +3072,7 @@ export default function TariffSearchPage() {
                               </div>
                             </button>
                             {expandedCrSection === r.id && r.content && (
-                              <div className="mt-2 ml-16 pl-4 border-l-2 border-blue-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">{r.content}</div>
+                              <div className="mt-2 ml-16 pl-4 border-l-2 border-blue-200 "><LegalTextRenderer content={r.content} /></div>
                             )}
                           </div>
                         ))}
@@ -3122,7 +3123,7 @@ export default function TariffSearchPage() {
                               </div>
                             </button>
                             {expandedPeSection === r.id && r.content && (
-                              <div className="mt-2 ml-16 pl-4 border-l-2 border-red-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">{r.content}</div>
+                              <div className="mt-2 ml-16 pl-4 border-l-2 border-red-200 "><LegalTextRenderer content={r.content} /></div>
                             )}
                           </div>
                         ))}
@@ -3173,7 +3174,7 @@ export default function TariffSearchPage() {
                               </div>
                             </button>
                             {expandedIntlObSection === r.id && r.content && (
-                              <div className="mt-2 ml-16 pl-4 border-l-2 border-blue-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">{r.content}</div>
+                              <div className="mt-2 ml-16 pl-4 border-l-2 border-blue-200 "><LegalTextRenderer content={r.content} /></div>
                             )}
                           </div>
                         ))}
@@ -3256,8 +3257,8 @@ export default function TariffSearchPage() {
                                       </div>
                                     </button>
                                     {isExpanded && sectionContent && (
-                                      <div className="mt-2 ml-19 pl-16 border-l-2 border-purple-200 text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">
-                                        {sectionContent}
+                                      <div className="mt-2 ml-19 pl-16 border-l-2 border-purple-200 ">
+                                        <LegalTextRenderer content={sectionContent} />
                                       </div>
                                     )}
                                   </div>
