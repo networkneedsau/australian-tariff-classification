@@ -201,6 +201,23 @@ interface IntlObPartGroup { part: string; part_title: string; regulations: IntlO
 // ── Customs (Prohibited Exports) Regulations 1958 ─────────────────
 // Reuses IntlObRow/IntlObPartGroup interfaces (same structure)
 
+// ── Customs Notices ───────────────────────────────────────────────
+
+interface CustomsNoticeRow {
+  id: number;
+  notice_number: string;
+  title: string;
+  year: number;
+  category: string;
+  summary: string | null;
+  effective_date: string | null;
+}
+
+interface NoticeYearGroup {
+  year: number;
+  notices: CustomsNoticeRow[];
+}
+
 // ── Illegal Logging Prohibition ────────────────────────────────────
 // Act reuses TdActRow/TdActPartGroup (same part/section structure)
 // Reg reuses IntlObRow/IntlObPartGroup (same part/regulation structure)
@@ -333,7 +350,7 @@ export default function TariffSearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Schedule browse state
-  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs' | 'ad-act' | 'il-act' | 'il-reg' | 'ifc-act' | 'ifc-reg'>('search');
+  const [activeView, setActiveView] = useState<'search' | 'schedule' | 'act' | 'regulations' | 'chemicals' | 'ahecc' | 'reffiles' | 'cpquestions' | 'dumping' | 'gst-act' | 'gst-regs' | 'bio-act' | 'bio-regs' | 'td-act' | 'td-regs' | 'intl-ob' | 'pe-regs' | 'customs-reg' | 'ct-act' | 'ct-regs' | 'ad-act' | 'il-act' | 'il-reg' | 'ifc-act' | 'ifc-reg' | 'acn'>('search');
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -438,6 +455,12 @@ export default function TariffSearchPage() {
   const [tdRegsLoading, setTdRegsLoading] = useState(false);
   const [expandedTdSection, setExpandedTdSection] = useState<number | null>(null);
 
+  // Customs Notices data
+  const [acnData, setAcnData] = useState<CustomsNoticeRow[]>([]);
+  const [acnYears, setAcnYears] = useState<NoticeYearGroup[]>([]);
+  const [expandedAcnYear, setExpandedAcnYear] = useState<number | null>(null);
+  const [acnLoading, setAcnLoading] = useState(false);
+
   // Illegal Logging Act data
   const [ilActData, setIlActData] = useState<TdActRow[]>([]);
   const [ilActParts, setIlActParts] = useState<TdActPartGroup[]>([]);
@@ -502,6 +525,7 @@ export default function TariffSearchPage() {
   const [ilRegFilter, setIlRegFilter] = useState('');
   const [ifcActFilter, setIfcActFilter] = useState('');
   const [ifcRegFilter, setIfcRegFilter] = useState('');
+  const [acnFilter, setAcnFilter] = useState('');
   const [gstActFilter, setGstActFilter] = useState('');
   const [gstRegsFilter, setGstRegsFilter] = useState('');
   const [bioActFilter, setBioActFilter] = useState('');
@@ -747,6 +771,10 @@ export default function TariffSearchPage() {
     ? ilRegParts.map(p => ({ ...p, regulations: p.regulations.filter(r => r.regulation_number.toLowerCase().includes(ilRegFilter.toLowerCase()) || r.regulation_title.toLowerCase().includes(ilRegFilter.toLowerCase()) || (r.content || '').toLowerCase().includes(ilRegFilter.toLowerCase())) })).filter(p => p.regulations.length > 0)
     : ilRegParts;
 
+  const filteredAcnYears = acnFilter
+    ? acnYears.map(y => ({ ...y, notices: y.notices.filter(n => n.notice_number.toLowerCase().includes(acnFilter.toLowerCase()) || n.title.toLowerCase().includes(acnFilter.toLowerCase()) || n.category.toLowerCase().includes(acnFilter.toLowerCase()) || (n.summary || '').toLowerCase().includes(acnFilter.toLowerCase())) })).filter(y => y.notices.length > 0)
+    : acnYears;
+
   const filteredIfcActParts = ifcActFilter
     ? ifcActParts.map(p => ({ ...p, sections: p.sections.filter(s => s.section_number.toLowerCase().includes(ifcActFilter.toLowerCase()) || s.section_title.toLowerCase().includes(ifcActFilter.toLowerCase()) || (s.content || '').toLowerCase().includes(ifcActFilter.toLowerCase())) })).filter(p => p.sections.length > 0)
     : ifcActParts;
@@ -907,7 +935,9 @@ export default function TariffSearchPage() {
                       ? 'AHECC — Export Commodity Classification'
                       : activeView === 'dumping'
                         ? 'Anti-Dumping & Countervailing Duty Notices'
-                        : activeView === 'reffiles'
+                        : activeView === 'acn'
+                          ? 'Australian Customs Notices'
+                          : activeView === 'reffiles'
                           ? 'ABF Software Reference Files'
                           : activeView === 'cpquestions'
                             ? 'Community Protection Questions'
@@ -969,6 +999,31 @@ export default function TariffSearchPage() {
                   >
                     <span className="font-mono text-xs font-bold text-orange-700 w-24 shrink-0 pt-0.5">Dumping</span>
                     <span className="text-sm text-gray-700">Anti-Dumping & Countervailing Notices</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setComplianceDropdownOpen(false);
+                      setActiveView('acn');
+                      setActiveSchedule(null);
+                      setAcnFilter('');
+                      setExpandedAcnYear(null);
+                      if (acnData.length === 0) {
+                        setAcnLoading(true);
+                        try {
+                          const res = await fetch('/api/tariff/customs-notices');
+                          const data: CustomsNoticeRow[] = await res.json();
+                          setAcnData(data);
+                          const groups: NoticeYearGroup[] = [];
+                          const m = new Map<number, NoticeYearGroup>();
+                          for (const n of data) { let g = m.get(n.year); if (!g) { g = { year: n.year, notices: [] }; m.set(n.year, g); groups.push(g); } g.notices.push(n); }
+                          setAcnYears(groups);
+                        } catch { /* */ } finally { setAcnLoading(false); }
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-start gap-3 transition-colors"
+                  >
+                    <span className="font-mono text-xs font-bold text-orange-700 w-24 shrink-0 pt-0.5">ACN</span>
+                    <span className="text-sm text-gray-700">Australian Customs Notices & Gazettes</span>
                   </button>
 
                   <div className="border-t border-gray-100 mx-3" />
@@ -2716,6 +2771,62 @@ export default function TariffSearchPage() {
                             {n.duty_info && <p className="text-xs text-orange-700 font-medium mt-1">{n.duty_info}</p>}
                             {n.expiry_info && <p className="text-xs text-blue-600 mt-1">{n.expiry_info}</p>}
                             {n.notes && <p className="text-xs text-gray-400 mt-1 italic">{n.notes}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : activeView === 'acn' ? (
+          // ── Australian Customs Notices ──────────────────────────
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={goHome} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                Back to Search
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-1">Australian Customs Notices (ACNs)</h2>
+              <p className="text-xs text-gray-500 mb-3">Official notices from the Australian Border Force covering duty rates, broker licensing, prohibited goods, and FTA implementation</p>
+              <input type="text" value={acnFilter} onChange={(e) => setAcnFilter(e.target.value)} placeholder="Search by notice number, title, category..." className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900" />
+              <p className="text-xs text-gray-400 mt-2">{filteredAcnYears.reduce((s, y) => s + y.notices.length, 0)} of {acnData.length} notices</p>
+            </div>
+
+            {acnLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredAcnYears.map((yg) => (
+                  <div key={yg.year} className="bg-white rounded-lg shadow overflow-hidden">
+                    <button onClick={() => setExpandedAcnYear(expandedAcnYear === yg.year ? null : yg.year)} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors">
+                      <div>
+                        <span className="font-semibold text-orange-800 text-lg">{yg.year}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-4">
+                        <span className="text-xs text-gray-400">{yg.notices.length} notices</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedAcnYear === yg.year ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </button>
+                    {expandedAcnYear === yg.year && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {yg.notices.map((n) => (
+                          <div key={n.id} className="px-5 py-3 text-sm">
+                            <div className="flex items-start justify-between mb-1">
+                              <div className="flex items-start gap-3">
+                                <span className="font-mono text-orange-600 font-medium w-28 shrink-0">{n.notice_number}</span>
+                                <span className="font-medium text-gray-800">{n.title}</span>
+                              </div>
+                              <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded shrink-0 ml-2">{n.category}</span>
+                            </div>
+                            {n.summary && <p className="text-xs text-gray-500 ml-31 pl-28">{n.summary}</p>}
+                            {n.effective_date && <p className="text-xs text-blue-600 ml-31 pl-28 mt-0.5">Effective: {n.effective_date}</p>}
                           </div>
                         ))}
                       </div>
