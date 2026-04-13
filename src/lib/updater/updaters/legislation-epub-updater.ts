@@ -88,7 +88,15 @@ export class LegislationEpubUpdater extends BaseUpdater {
   }
 
   async fetch(): Promise<LegislationSection[]> {
-    return fetchLegislation(this.config.seriesId);
+    try {
+      return await fetchLegislation(this.config.seriesId);
+    } catch (err: any) {
+      logWarn(
+        this.sourceId,
+        `EPUB download failed for ${this.config.seriesId}: ${err?.message} — will preserve existing data`
+      );
+      return [];
+    }
   }
 
   apply(db: Database.Database, data: LegislationSection[]): ApplyResult {
@@ -217,7 +225,15 @@ export class DualLegislationEpubUpdater extends BaseUpdater {
     act: LegislationSection[];
     reg: LegislationSection[];
   }> {
-    const act = await fetchLegislation(this.config.act.seriesId);
+    let act: LegislationSection[] = [];
+    try {
+      act = await fetchLegislation(this.config.act.seriesId);
+    } catch (err: any) {
+      logWarn(
+        this.sourceId,
+        `Could not fetch act EPUB (${this.config.act.seriesId}): ${err?.message} — keeping existing act data`
+      );
+    }
 
     let reg: LegislationSection[] = [];
     try {
