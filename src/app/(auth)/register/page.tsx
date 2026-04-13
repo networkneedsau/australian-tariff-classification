@@ -66,7 +66,7 @@ export default function RegisterPage() {
             T
           </div>
           <h1 className="text-2xl font-bold text-white">Create your account</h1>
-          <p className="text-slate-400 text-sm mt-1">Get started with TariffAU for free</p>
+          <p className="text-slate-400 text-sm mt-1">TariffAU — Powered by Logistica</p>
         </div>
 
         {error && (

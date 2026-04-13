@@ -41,10 +41,13 @@ export default function TopBar({
         <svg className="w-7 h-7 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
           <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
         </svg>
-        <span className="text-lg font-bold tracking-tight">
-          <span className="text-blue-400">Tariff</span>
-          <span className="text-white">AU</span>
-        </span>
+        <div className="flex flex-col leading-tight">
+          <span className="text-lg font-bold tracking-tight">
+            <span className="text-blue-400">Tariff</span>
+            <span className="text-white">AU</span>
+          </span>
+          <span className="text-[9px] text-slate-400 -mt-1">Powered by Logistica</span>
+        </div>
       </div>
 
       {/* Search input */}

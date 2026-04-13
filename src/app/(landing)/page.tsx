@@ -11,7 +11,10 @@ export default function LandingPage() {
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-400 to-cyan-300 flex items-center justify-center font-bold text-[#0a1628] text-lg">
             T
           </div>
-          <span className="text-xl font-semibold tracking-tight">TariffAU</span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-xl font-semibold tracking-tight">TariffAU</span>
+            <span className="text-[10px] text-slate-400 -mt-0.5">Powered by Logistica</span>
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <Link
@@ -139,7 +142,7 @@ export default function LandingPage() {
           reference purposes only and does not constitute legal or professional customs advice.
         </p>
         <p className="text-xs text-slate-600 mt-3">
-          &copy; {new Date().getFullYear()} TariffAU. All rights reserved.
+          &copy; {new Date().getFullYear()} TariffAU — Powered by Logistica. All rights reserved.
         </p>
       </footer>
     </div>

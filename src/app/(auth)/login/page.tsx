@@ -47,7 +47,7 @@ export default function LoginPage() {
             T
           </div>
           <h1 className="text-2xl font-bold text-white">Sign in to TariffAU</h1>
-          <p className="text-slate-400 text-sm mt-1">Access the Australian Tariff Classification System</p>
+          <p className="text-slate-400 text-sm mt-1">Powered by Logistica</p>
         </div>
 
         {error && (
