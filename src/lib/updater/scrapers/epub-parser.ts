@@ -124,6 +124,71 @@ export async function downloadLegislationEpub(
     }
   }
 
+  // ── Fallback: Try fetching XHTML documents directly ──────────────
+  // legislation.gov.au serves individual EPUB HTML documents at:
+  // /{seriesId}/{date}/{date}/text/original/epub/OEBPS/document_N/document_N.html
+  const resolvedDate = date || (await resolveLatestDate(seriesId));
+  if (resolvedDate) {
+    logInfo(SRC, `Trying direct XHTML fetch with date ${resolvedDate}`);
+    let combinedHtml = '';
+    for (let docNum = 1; docNum <= 10; docNum++) {
+      const xhtmlUrl = `https://www.legislation.gov.au/${seriesId}/${resolvedDate}/${resolvedDate}/text/original/epub/OEBPS/document_${docNum}/document_${docNum}.html`;
+      try {
+        const docHtml = await fetchPage(xhtmlUrl, { retries: 1, timeoutMs: 30_000 });
+        if (docHtml && (docHtml.includes('ActHead') || docHtml.includes('subsection') || docHtml.includes('class="paragraph"'))) {
+          combinedHtml += docHtml + '\n';
+          logInfo(SRC, `Fetched document_${docNum} (${docHtml.length} chars)`);
+        } else {
+          break; // No more documents
+        }
+      } catch {
+        break; // No more documents at this index
+      }
+    }
+    if (combinedHtml.length > 1000) {
+      logInfo(SRC, `Direct XHTML fetch succeeded: ${combinedHtml.length} chars total`);
+      return combinedHtml;
+    }
+  }
+
+  // ── Fallback: Try the downloads page to find the EPUB link ──────
+  // Some legislation uses compilation IDs (F2026C00277) not series dates
+  try {
+    logInfo(SRC, `Trying downloads page for ${seriesId}`);
+    const downloadsHtml = await fetchPage(
+      `https://www.legislation.gov.au/${seriesId}/latest/downloads/epub`,
+      { retries: 1, timeoutMs: 20_000 }
+    );
+    // Extract date from any EPUB OEBPS link on the page
+    const epubLinkMatch = downloadsHtml.match(
+      new RegExp(`${seriesId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/(\\d{4}-\\d{2}-\\d{2})/(\\d{4}-\\d{2}-\\d{2})/text/original/epub`)
+    );
+    if (epubLinkMatch) {
+      const epubDate = epubLinkMatch[1];
+      logInfo(SRC, `Found EPUB date from downloads page: ${epubDate}`);
+      let combinedHtml = '';
+      for (let docNum = 1; docNum <= 10; docNum++) {
+        const xhtmlUrl = `https://www.legislation.gov.au/${seriesId}/${epubDate}/${epubDate}/text/original/epub/OEBPS/document_${docNum}/document_${docNum}.html`;
+        try {
+          const docHtml = await fetchPage(xhtmlUrl, { retries: 1, timeoutMs: 30_000 });
+          if (docHtml && (docHtml.includes('ActHead') || docHtml.includes('subsection') || docHtml.includes('paragraph'))) {
+            combinedHtml += docHtml + '\n';
+          } else {
+            break;
+          }
+        } catch {
+          break;
+        }
+      }
+      if (combinedHtml.length > 1000) {
+        logInfo(SRC, `Downloads page XHTML fetch succeeded: ${combinedHtml.length} chars`);
+        return combinedHtml;
+      }
+    }
+  } catch (err: any) {
+    logWarn(SRC, `Downloads page fallback failed: ${err?.message}`);
+  }
+
   throw lastError ?? new Error(`Failed to download EPUB for ${seriesId}`);
 }
 
