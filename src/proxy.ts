@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
 
 const PUBLIC_PREFIXES = [
   '/api/auth/',
+  '/api/admin/',   // Admin API has its own Bearer token auth
   '/_next/',
   '/favicon.ico',
 ];

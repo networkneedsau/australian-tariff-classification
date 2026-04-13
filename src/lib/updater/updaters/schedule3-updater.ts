@@ -228,23 +228,13 @@ export class Schedule3Updater extends BaseUpdater {
       );
     }
 
-    // ── Step 3: Check if we need to scrape descriptions ─────────────
-    // Only scrape HTML if the database has no existing descriptions
-    let scrapedRows: ClassificationRow[] | null = null;
+    // ── Step 3: Skip HTML scrape — use existing descriptions + HS data ─
+    // HTML scraping is too slow (120+ pages) and fragile. The database
+    // already has descriptions from seed data + HS descriptions updater.
+    // Only the reference files (TFRPSNAP + TRFCSNAP) are needed for updates.
+    logInfo(SRC, 'Skipping HTML scrape — using existing descriptions + reference file rates');
 
-    // We'll check DB state in apply() since we don't have db here.
-    // Instead, always attempt the scrape if we can, but don't fail if
-    // it fails — the reference files alone are enough for updates.
-    try {
-      logInfo(SRC, 'Attempting HTML scrape for descriptions (first-run or refresh)');
-      scrapedRows = await this.scrapeDescriptions();
-      logInfo(SRC, `HTML scrape returned ${scrapedRows?.length ?? 0} rows`);
-    } catch (err: any) {
-      logWarn(SRC, `HTML scrape failed (will use existing descriptions): ${err?.message}`);
-      scrapedRows = null;
-    }
-
-    return { tfrpRates, trfcCodes, scrapedRows };
+    return { tfrpRates, trfcCodes, scrapedRows: null };
   }
 
   apply(
