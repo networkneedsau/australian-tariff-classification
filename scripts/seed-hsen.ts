@@ -1,0 +1,58 @@
+import Database from 'better-sqlite3';
+import path from 'path';
+
+const dbPath = path.join(process.cwd(), 'tariff.db');
+const db = new Database(dbPath);
+db.pragma('journal_mode = WAL');
+
+db.exec(`
+  DROP TABLE IF EXISTS hsen;
+  CREATE TABLE hsen (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    section TEXT NOT NULL,
+    section_title TEXT NOT NULL,
+    chapters TEXT NOT NULL,
+    scope TEXT,
+    key_notes TEXT,
+    classification_guidance TEXT
+  );
+  CREATE INDEX idx_hsen_section ON hsen(section);
+`);
+
+interface H { section: string; section_title: string; chapters: string; scope?: string; key_notes?: string; classification_guidance?: string; }
+
+const rows: H[] = [
+  { section: 'Section I', section_title: 'Live animals; animal products', chapters: 'Chapters 1-5', scope: 'Live animals, meat, fish, crustaceans, dairy, eggs, honey, animal products NES', key_notes: 'Chapter 1 covers only live animals. Chapter 2 covers meat fresh/chilled/frozen. Chapter 4 covers dairy, eggs, honey.', classification_guidance: 'Prepared/preserved meat goes to Ch.16. Fish preparations go to Ch.16. Fats/oils go to Ch.15.' },
+  { section: 'Section II', section_title: 'Vegetable products', chapters: 'Chapters 6-14', scope: 'Live plants, vegetables, fruit, nuts, cereals, milling products, seeds, gums, resins', key_notes: 'Fresh vs dried/preserved distinction is critical. Chapter 7 covers fresh vegetables, Chapter 20 covers prepared vegetables.', classification_guidance: 'Flour and starch go to Ch.11. Vegetable oils go to Ch.15. Prepared vegetables go to Ch.20.' },
+  { section: 'Section III', section_title: 'Animal, vegetable or microbial fats and oils', chapters: 'Chapter 15', scope: 'Animal/vegetable fats and oils, their cleavage products, prepared edible fats, waxes', key_notes: 'Single chapter section. Covers both crude and refined oils. Margarine classified here.', classification_guidance: 'Essential oils go to Ch.33. Mineral oils go to Ch.27. Chemically modified fats may go to Ch.34.' },
+  { section: 'Section IV', section_title: 'Prepared foodstuffs; beverages, spirits; tobacco', chapters: 'Chapters 16-24', scope: 'Prepared meat/fish, sugar, cocoa, bakery, vegetables prepared, beverages, tobacco', key_notes: 'Ch.16: prepared meat/fish. Ch.17: sugar. Ch.18: cocoa. Ch.19: bakery. Ch.20: prepared vegetables/fruit. Ch.21: food preparations NES. Ch.22: beverages. Ch.24: tobacco.', classification_guidance: 'Distinction between Sections I-II (raw) and Section IV (prepared) is key. Degree of processing determines chapter.' },
+  { section: 'Section V', section_title: 'Mineral products', chapters: 'Chapters 25-27', scope: 'Salt, stone, ores, slag, ash, mineral fuels, petroleum oils, bituminous substances', key_notes: 'Ch.25: salt, stone, cement. Ch.26: ores, slag, ash. Ch.27: mineral fuels, petroleum, bituminous.', classification_guidance: 'Chemically defined elements/compounds go to Ch.28-29. Petroleum products classification depends on distillation range.' },
+  { section: 'Section VI', section_title: 'Products of the chemical or allied industries', chapters: 'Chapters 28-38', scope: 'Inorganic/organic chemicals, pharmaceuticals, fertilizers, dyes, cosmetics, soaps, explosives, photographic chemicals', key_notes: 'Ch.28: inorganic. Ch.29: organic. Ch.30: pharmaceuticals. Ch.31: fertilizers. Ch.32: dyes. Ch.33: cosmetics/essential oils. Ch.34: soap/detergents. Ch.38: miscellaneous chemical products.', classification_guidance: 'Medicaments in doses go to Ch.30. Unmixed chemicals go to Ch.28/29. Mixtures may go to Ch.38.' },
+  { section: 'Section VII', section_title: 'Plastics and articles thereof; rubber and articles thereof', chapters: 'Chapters 39-40', scope: 'Plastics in primary forms, plates, sheets, tubes, articles; natural/synthetic rubber, articles thereof', key_notes: 'Ch.39: plastics. Ch.40: rubber. Note 1 defines plastics. Note 2 excludes certain goods.', classification_guidance: 'Articles of plastic classified by form (plates, tubes, articles). Composite plastic/textile articles follow essential character rule.' },
+  { section: 'Section VIII', section_title: 'Raw hides and skins, leather, furskins and articles thereof', chapters: 'Chapters 41-43', scope: 'Hides, leather, furskins, saddlery, travel goods, handbags, articles of gut', key_notes: 'Ch.41: hides/leather. Ch.42: travel goods, handbags. Ch.43: furskins, artificial fur.', classification_guidance: 'Leather garments go to Ch.42 or Ch.61/62. Footwear goes to Ch.64. Outer surface material determines classification for bags.' },
+  { section: 'Section IX', section_title: 'Wood and articles of wood; cork; basketware', chapters: 'Chapters 44-46', scope: 'Wood, charcoal, cork, straw, esparto, plaiting materials, basketware', key_notes: 'Ch.44: wood and articles. Ch.45: cork. Ch.46: manufactures of straw, basketware.', classification_guidance: 'Wooden furniture goes to Ch.94. Paper/paperboard goes to Section X. Plywood and particle board classified by construction.' },
+  { section: 'Section X', section_title: 'Pulp of wood or other fibrous cellulosic material; paper and paperboard', chapters: 'Chapters 47-49', scope: 'Pulp, paper, paperboard, articles thereof, printed books, newspapers, pictures', key_notes: 'Ch.47: pulp. Ch.48: paper/paperboard. Ch.49: printed matter, manuscripts, plans.', classification_guidance: 'Books/newspapers duty-free in many countries. Wallpaper goes to Ch.48. Playing cards go to Ch.95.' },
+  { section: 'Section XI', section_title: 'Textiles and textile articles', chapters: 'Chapters 50-63', scope: 'Silk, wool, cotton, synthetic fibres, yarn, fabrics, made-up textiles, garments', key_notes: 'Chapters organized by fibre type (50-55), then by article type (56-63). Ch.61: knitted garments. Ch.62: woven garments. Classification by predominant fibre content by weight.', classification_guidance: 'Section Note 2 provides fibre classification hierarchy. Knit vs woven determines Ch.61 vs Ch.62. Made-up articles go to Ch.63.' },
+  { section: 'Section XII', section_title: 'Footwear, headgear, umbrellas, walking sticks', chapters: 'Chapters 64-67', scope: 'Footwear, gaiters, headgear, umbrellas, sun umbrellas, walking sticks, whips', key_notes: 'Ch.64: footwear. Ch.65: headgear. Ch.66: umbrellas. Ch.67: feathers, artificial flowers.', classification_guidance: 'Footwear classified by outer sole and upper material. Sports footwear may have special classification.' },
+  { section: 'Section XIII', section_title: 'Articles of stone, plaster, cement, asbestos; ceramics; glass', chapters: 'Chapters 68-70', scope: 'Stone articles, ceramic products, glass and glassware', key_notes: 'Ch.68: stone, plaster, cement articles. Ch.69: ceramic products. Ch.70: glass and glassware.', classification_guidance: 'Technical ceramics classified separately from household. Optical glass elements go to Ch.90.' },
+  { section: 'Section XIV', section_title: 'Natural or cultured pearls, precious or semi-precious stones, precious metals', chapters: 'Chapter 71', scope: 'Pearls, precious/semi-precious stones, precious metals, jewellery, coins', key_notes: 'Single chapter section. Covers both natural and cultured pearls, worked and unworked stones.', classification_guidance: 'Imitation jewellery goes to 7117. Precious metal articles classified by metal type and working.' },
+  { section: 'Section XV', section_title: 'Base metals and articles of base metal', chapters: 'Chapters 72-83', scope: 'Iron/steel, copper, nickel, aluminium, lead, zinc, tin and articles thereof; tools, cutlery', key_notes: 'Ch.72: iron/steel. Ch.73: articles of iron/steel. Ch.74: copper. Ch.76: aluminium. Ch.82: tools. Ch.83: miscellaneous base metal articles.', classification_guidance: 'Note 1 defines base metals. Parts of general use (screws, springs, etc.) classified here, not with machines.' },
+  { section: 'Section XVI', section_title: 'Machinery and mechanical appliances; electrical equipment', chapters: 'Chapters 84-85', scope: 'Nuclear reactors, boilers, machinery, mechanical appliances; electrical machinery, equipment, parts', key_notes: 'Ch.84: machinery/mechanical. Ch.85: electrical/electronic. Note 2: parts classified with machine unless excluded. Note 4: functional units classified by principal function.', classification_guidance: 'Most complex section. Parts go with their machine unless they are parts of general use (Section XV). Multifunctional devices classified by principal function.' },
+  { section: 'Section XVII', section_title: 'Vehicles, aircraft, vessels and associated transport equipment', chapters: 'Chapters 86-89', scope: 'Railway vehicles, motor vehicles, aircraft, ships, boats', key_notes: 'Ch.86: railway. Ch.87: motor vehicles. Ch.88: aircraft. Ch.89: ships/boats.', classification_guidance: 'Parts and accessories follow specific chapter notes. Incomplete vehicles may be classified as complete (GIR 2a). Electric vehicles classified by propulsion type.' },
+  { section: 'Section XVIII', section_title: 'Optical, photographic, cinematographic, measuring, medical instruments; clocks and watches', chapters: 'Chapters 90-92', scope: 'Optical, measuring, checking, precision, medical, surgical instruments; clocks, watches; musical instruments', key_notes: 'Ch.90: optical/medical/measuring. Ch.91: clocks/watches. Ch.92: musical instruments.', classification_guidance: 'Medical devices go to Ch.90. Parts classified with their instruments. Laboratory vs medical distinction important.' },
+  { section: 'Section XIX', section_title: 'Arms and ammunition; parts and accessories thereof', chapters: 'Chapter 93', scope: 'Weapons, ammunition, parts and accessories', key_notes: 'Single chapter section. Covers military and civilian weapons.', classification_guidance: 'Parts solely for weapons classified here. Dual-use parts may go elsewhere. Subject to import prohibitions.' },
+  { section: 'Section XX', section_title: 'Miscellaneous manufactured articles', chapters: 'Chapters 94-96', scope: 'Furniture, lighting, prefabricated buildings; toys, games, sports equipment; miscellaneous manufactured articles', key_notes: 'Ch.94: furniture, lighting, prefab buildings. Ch.95: toys, games, sports. Ch.96: miscellaneous (pens, buttons, brooms).', classification_guidance: 'LED lighting goes to Ch.94 (9405), not Ch.85. Furniture parts go to Ch.94. Toys with educational function still classified as toys.' },
+  { section: 'Section XXI', section_title: 'Works of art, collectors pieces and antiques', chapters: 'Chapter 97', scope: 'Paintings, drawings, sculptures, original engravings, stamps, antiques over 100 years', key_notes: 'Single chapter section. Original works only — reproductions go elsewhere.', classification_guidance: 'Must be original works. Antiques must be over 100 years old. Reproductions of paintings may go to Ch.49.' },
+];
+
+const insert = db.prepare(`INSERT INTO hsen (section, section_title, chapters, scope, key_notes, classification_guidance) VALUES (@section, @section_title, @chapters, @scope, @key_notes, @classification_guidance)`);
+db.transaction(() => { for (const r of rows) insert.run({ ...r, scope: r.scope || null, key_notes: r.key_notes || null, classification_guidance: r.classification_guidance || null }); })();
+
+db.exec(`
+  CREATE VIRTUAL TABLE IF NOT EXISTS hsen_fts USING fts5(section, section_title, chapters, scope, key_notes, classification_guidance, content='hsen', content_rowid='id');
+  INSERT INTO hsen_fts(hsen_fts) VALUES('rebuild');
+`);
+
+const count = (db.prepare('SELECT COUNT(*) as cnt FROM hsen').get() as { cnt: number }).cnt;
+console.log(`Seeded ${count} HSEN sections`);
+db.close();
