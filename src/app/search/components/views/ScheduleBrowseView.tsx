@@ -27,14 +27,14 @@ export default function ScheduleBrowseView({
   const [ftaExclusions, setFtaExclusions] = useState<FtaExclusionRow[]>([]);
   const [rules, setRules] = useState<RuleData[]>([]);
   const [filter, setFilter] = useState('');
-  const [expandedSection, setExpandedSection] = useState<number | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
 
   // Fetch data based on schedule type
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setFilter('');
-    setExpandedSection(null);
+    setCollapsedSections(new Set());
 
     (async () => {
       try {
@@ -213,11 +213,14 @@ export default function ScheduleBrowseView({
                 title={`Section ${toRoman(section.number)}`}
                 subtitle={section.title}
                 count={section.chapters.length}
-                expanded={expandedSection === section.number}
+                expanded={!collapsedSections.has(section.number)}
                 onToggle={() =>
-                  setExpandedSection((prev) =>
-                    prev === section.number ? null : section.number,
-                  )
+                  setCollapsedSections((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(section.number)) next.delete(section.number);
+                    else next.add(section.number);
+                    return next;
+                  })
                 }
                 colorScheme="blue"
               >

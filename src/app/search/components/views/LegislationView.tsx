@@ -38,7 +38,7 @@ export default function LegislationView({
   const [data, setData] = useState<Record<string, any>[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
-  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   // Fetch data on mount
@@ -46,7 +46,7 @@ export default function LegislationView({
     let cancelled = false;
     setLoading(true);
     setData([]);
-    setExpandedGroup(null);
+    setCollapsedGroups(new Set());
     setExpandedItem(null);
     setFilter('');
 
@@ -153,11 +153,14 @@ export default function LegislationView({
             title={group.key}
             subtitle={group.title}
             count={group.items.length}
-            expanded={expandedGroup === group.key}
+            expanded={!collapsedGroups.has(group.key)}
             onToggle={() =>
-              setExpandedGroup((prev) =>
-                prev === group.key ? null : group.key,
-              )
+              setCollapsedGroups((prev) => {
+                const next = new Set(prev);
+                if (next.has(group.key)) next.delete(group.key);
+                else next.add(group.key);
+                return next;
+              })
             }
             colorScheme={colorScheme}
           >

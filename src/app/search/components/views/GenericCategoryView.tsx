@@ -374,7 +374,7 @@ export default function GenericCategoryView({
   const [data, setData] = useState<Record<string, any>[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
-  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   // Fetch data
@@ -384,7 +384,7 @@ export default function GenericCategoryView({
     setLoading(true);
     setData([]);
     setFilter('');
-    setExpandedGroup(null);
+    setCollapsedGroups(new Set());
     setExpandedItem(null);
 
     (async () => {
@@ -503,11 +503,14 @@ export default function GenericCategoryView({
             key={group.key}
             title={group.title}
             count={group.items.length}
-            expanded={expandedGroup === group.key}
+            expanded={!collapsedGroups.has(group.key)}
             onToggle={() =>
-              setExpandedGroup((prev) =>
-                prev === group.key ? null : group.key,
-              )
+              setCollapsedGroups((prev) => {
+                const next = new Set(prev);
+                if (next.has(group.key)) next.delete(group.key);
+                else next.add(group.key);
+                return next;
+              })
             }
             colorScheme={config.colorScheme}
           >
