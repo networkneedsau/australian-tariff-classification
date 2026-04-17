@@ -1,27 +1,31 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import ThreePanelLayout from './components/ThreePanelLayout';
-import TopBar from './components/TopBar';
-import LibrarySidebar from './components/LibrarySidebar';
-import CenterPanel from './components/CenterPanel';
-import CrossReferencePanel from './components/CrossReferencePanel';
+import ThreePanelLayout from '@/app/search/components/ThreePanelLayout';
+import TopBar from '@/app/search/components/TopBar';
+import LibrarySidebar from '@/app/search/components/LibrarySidebar';
+import CenterPanel from '@/app/search/components/CenterPanel';
+import CrossReferencePanel from '@/app/search/components/CrossReferencePanel';
 import BookmarkPanel from '@/app/components/BookmarkPanel';
-import { useSearch } from './hooks/useSearch';
-import { useCrossReference } from './hooks/useCrossReference';
-import { buildSourceCounts } from './utils/cross-ref-mapping';
-import type { ActiveView, EntryResponse, CustomsEntryFields, ScheduleInfo } from './types';
+import { useSearch } from '@/app/search/hooks/useSearch';
+import { useCrossReference } from '@/app/search/hooks/useCrossReference';
+import { buildSourceCounts } from '@/app/search/utils/cross-ref-mapping';
+import type {
+  ActiveView,
+  EntryResponse,
+  CustomsEntryFields,
+  ScheduleInfo,
+} from '@/app/search/types';
 
-export default function SearchPage() {
-  // ── Core state ─────────────────────────────────────────────────
-  const [activeView, setActiveView] = useState<ActiveView>('search');
+export default function UpdatesPage() {
+  // Reuse the three-panel search shell but default to the Daily Updates view.
+  const [activeView, setActiveView] = useState<ActiveView>('updates');
   const [selectedEntry, setSelectedEntry] = useState<EntryResponse | null>(null);
   const [customsFields, setCustomsFields] = useState<CustomsEntryFields | null>(null);
   const [activeSchedule, setActiveSchedule] = useState<ScheduleInfo | null>(null);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
 
-  // ── Search state (via hooks) ───────────────────────────────────
   const {
     query,
     setQuery,
@@ -40,31 +44,28 @@ export default function SearchPage() {
   } = useSearch();
 
   const { sources: crossRefSources, loading: crossRefLoading } = useCrossReference(query);
-
-  // Map cross-reference source IDs to viewKeys used by the library tree
   const sourceCounts = useMemo(() => buildSourceCounts(crossRefSources), [crossRefSources]);
 
-  // ── Select a tariff code — fetch entry details ─────────────────
   const selectTariffCode = useCallback(async (code: string) => {
     try {
       const res = await fetch(`/api/tariff/for-entry/${encodeURIComponent(code)}`);
       const data = await res.json();
       setSelectedEntry(data);
       setCustomsFields(data.customs_entry_fields);
-      // Switch to search view so the detail panel shows
       setActiveView('search');
     } catch {
       /* silently ignore */
     }
   }, []);
 
-  // ── Navigate to a view from library tree or cross-reference ────
-  const handleNavigateToView = useCallback((view: ActiveView, schedule?: ScheduleInfo) => {
-    setActiveView(view);
-    if (schedule) setActiveSchedule(schedule);
-  }, []);
+  const handleNavigateToView = useCallback(
+    (view: ActiveView, schedule?: ScheduleInfo) => {
+      setActiveView(view);
+      if (schedule) setActiveSchedule(schedule);
+    },
+    []
+  );
 
-  // ── Render ─────────────────────────────────────────────────────
   return (
     <>
       <ThreePanelLayout

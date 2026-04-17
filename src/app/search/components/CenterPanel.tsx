@@ -10,6 +10,8 @@ import {
   ScheduleBrowseView,
   GenericCategoryView,
   SearchResultsView,
+  DailyUpdatesView,
+  LibraryUpdatesView,
 } from './views';
 
 // ── Legislation configuration map ────────────────────────────────
@@ -259,6 +261,14 @@ export default function CenterPanel({
   aheccResults = [],
   aheccTotal = 0,
 }: CenterPanelProps) {
+  // ── Updates feed views ─────────────────────────────────────────
+  if (activeView === 'updates') {
+    return <DailyUpdatesView />;
+  }
+  if (activeView === 'library-updates') {
+    return <LibraryUpdatesView />;
+  }
+
   // ── Legislation views ──────────────────────────────────────────
   const legConfig = LEGISLATION_CONFIGS[activeView];
   if (legConfig) {
