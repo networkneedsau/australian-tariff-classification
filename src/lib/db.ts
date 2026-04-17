@@ -190,6 +190,36 @@ export function getDb(): Database.Database {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE UNIQUE INDEX IF NOT EXISTS idx_pref_scheme_code ON preference_schemes(scheme_code);
+
+    -- ABF permit requirements (from PRMTRQMT reference file)
+    CREATE TABLE IF NOT EXISTS permit_requirements_abf (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tariff_code TEXT NOT NULL,
+      agency_code TEXT NOT NULL,
+      agency_name TEXT,
+      start_date TEXT,
+      end_date TEXT,
+      required_flag TEXT,
+      is_active INTEGER DEFAULT 1,
+      source TEXT DEFAULT 'PRMTRQMT'
+    );
+    CREATE INDEX IF NOT EXISTS idx_permit_abf_code ON permit_requirements_abf(tariff_code);
+    CREATE INDEX IF NOT EXISTS idx_permit_abf_agency ON permit_requirements_abf(agency_code);
+    CREATE INDEX IF NOT EXISTS idx_permit_abf_active ON permit_requirements_abf(is_active);
+
+    -- Tariff concordance HS2017 <-> HS2022 (from TRFCCONC reference file)
+    CREATE TABLE IF NOT EXISTS tariff_concordance (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      new_code TEXT NOT NULL,
+      old_code TEXT NOT NULL,
+      new_code_formatted TEXT,
+      old_code_formatted TEXT,
+      created_at TEXT,
+      source TEXT DEFAULT 'TRFCCONC'
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_concordance_pair ON tariff_concordance(new_code, old_code);
+    CREATE INDEX IF NOT EXISTS idx_concordance_new ON tariff_concordance(new_code);
+    CREATE INDEX IF NOT EXISTS idx_concordance_old ON tariff_concordance(old_code);
   `);
 
   // Auto-populate tco_tariff_links from existing tco_references in tariff_classifications

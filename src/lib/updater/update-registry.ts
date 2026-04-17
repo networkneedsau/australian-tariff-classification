@@ -28,6 +28,9 @@ import { ProhibitedExportsUpdater } from './updaters/prohibited-exports-updater'
 import { ExchangeRatesUpdater } from './updaters/exchange-rates-updater';
 import { InstrumentsUpdater } from './updaters/instruments-updater';
 import { PreferenceSchemesUpdater } from './updaters/preference-schemes-updater';
+import { StatisticalUnitsUpdater } from './updaters/statistical-units-updater';
+import { AbfPermitsUpdater } from './updaters/abf-permits-updater';
+import { TariffConcordanceUpdater } from './updaters/tariff-concordance-updater';
 
 const SRC = 'registry';
 
@@ -45,31 +48,34 @@ export function getUpdaterRegistry(): Map<string, BaseUpdater> {
 
   registry = new Map<string, BaseUpdater>();
 
-  // ---- register all 21 updaters ----
+  // ---- register all 24 updaters ----
   const updaters: BaseUpdater[] = [
-    new HsDescriptionsUpdater(),     // 0.  International HS descriptions (run first)
-    new Schedule1Updater(),          // 1.  Countries
-    new Schedule2Updater(),          // 2.  Interpretative Rules
-    new Schedule3Updater(),          // 3.  Tariff Classifications
-    new FtaSchedulesUpdater(),       // 4.  FTA Exclusions (Sch 4-16 incl. sub-schedules)
-    new CustomsActUpdater(),         // 4.  Customs Act 1901
-    new CustomsTariffActUpdater(),   // 5.  Customs Tariff Act 1995
-    new GstActUpdater(),             // 6.  GST Act 1999
-    new ProhibitedImportsUpdater(),  // 7.  Prohibited Imports Regs
-    new DumpingNoticesUpdater(),     // 8.  Anti-Dumping Notices
-    new CustomsNoticesUpdater(),     // 9.  Customs Notices
-    new ChemicalIndexUpdater(),      // 10. Chemical Index
-    new AheccUpdater(),              // 11. AHECC Export Chapters
-    new BiosecurityUpdater(),        // 12. Biosecurity Act & Regs
-    new IllegalLoggingUpdater(),     // 13. Illegal Logging Act & Reg
-    new ImportedFoodUpdater(),       // 14. Imported Food Act & Reg
-    new TradeDescUpdater(),          // 15. Trade Descriptions Act & Regs
-    new CustomsRegsUpdater(),        // 16. Customs Regulations
-    new AntiDumpingActUpdater(),     // 17. Anti-Dumping Act
-    new ProhibitedExportsUpdater(),  // 18. Prohibited Exports Regs
-    new ExchangeRatesUpdater(),      // 19. ABF Exchange Rates
-    new InstrumentsUpdater(),        // 20. ABF Instruments (TCO/AD/CV)
-    new PreferenceSchemesUpdater(),  // 21. ABF Preference Schemes (FTA)
+    new HsDescriptionsUpdater(),       // 0.  International HS descriptions (run first)
+    new Schedule1Updater(),            // 1.  Countries
+    new Schedule2Updater(),            // 2.  Interpretative Rules
+    new Schedule3Updater(),            // 3.  Tariff Classifications
+    new FtaSchedulesUpdater(),         // 4.  FTA Exclusions (Sch 4-16 incl. sub-schedules)
+    new CustomsActUpdater(),           // 4.  Customs Act 1901
+    new CustomsTariffActUpdater(),     // 5.  Customs Tariff Act 1995
+    new GstActUpdater(),               // 6.  GST Act 1999
+    new ProhibitedImportsUpdater(),    // 7.  Prohibited Imports Regs
+    new DumpingNoticesUpdater(),       // 8.  Anti-Dumping Notices
+    new CustomsNoticesUpdater(),       // 9.  Customs Notices
+    new ChemicalIndexUpdater(),        // 10. Chemical Index
+    new AheccUpdater(),                // 11. AHECC Export Chapters
+    new BiosecurityUpdater(),          // 12. Biosecurity Act & Regs
+    new IllegalLoggingUpdater(),       // 13. Illegal Logging Act & Reg
+    new ImportedFoodUpdater(),         // 14. Imported Food Act & Reg
+    new TradeDescUpdater(),            // 15. Trade Descriptions Act & Regs
+    new CustomsRegsUpdater(),          // 16. Customs Regulations
+    new AntiDumpingActUpdater(),       // 17. Anti-Dumping Act
+    new ProhibitedExportsUpdater(),    // 18. Prohibited Exports Regs
+    new ExchangeRatesUpdater(),        // 19. ABF Exchange Rates
+    new InstrumentsUpdater(),          // 20. ABF Instruments (TCO/AD/CV)
+    new PreferenceSchemesUpdater(),    // 21. ABF Preference Schemes (FTA)
+    new StatisticalUnitsUpdater(),     // 22. ABF Statistical Units (STCPSNAP)
+    new AbfPermitsUpdater(),           // 23. ABF Permit Requirements (PRMTRQMT)
+    new TariffConcordanceUpdater(),    // 24. ABF Tariff Concordance (TRFCCONC)
   ];
 
   for (const u of updaters) {
