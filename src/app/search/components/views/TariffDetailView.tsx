@@ -165,30 +165,38 @@ export default function TariffDetailView({
 
         {/* Full hierarchy breadcrumb */}
         <div className="mt-3 bg-blue-100/50 rounded p-2.5 text-xs text-blue-700 space-y-1">
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-blue-500 w-16 shrink-0">
-              Section
-            </span>
-            <span>
-              {toRoman(entry.section.number)}: {entry.section.title}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-blue-500 w-16 shrink-0">
-              Chapter
-            </span>
-            <span>
-              {entry.chapter.number}: {entry.chapter.title}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-blue-500 w-16 shrink-0">
-              Heading
-            </span>
-            <span>
-              {entry.heading.code}: {entry.heading.description}
-            </span>
-          </div>
+          {entry.section && (
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-blue-500 w-16 shrink-0">
+                Section
+              </span>
+              <span>
+                {entry.section.number ? toRoman(entry.section.number) : '—'}
+                {entry.section.title ? `: ${entry.section.title}` : ''}
+              </span>
+            </div>
+          )}
+          {entry.chapter && (
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-blue-500 w-16 shrink-0">
+                Chapter
+              </span>
+              <span>
+                {entry.chapter.number ?? '—'}
+                {entry.chapter.title ? `: ${entry.chapter.title}` : ''}
+              </span>
+            </div>
+          )}
+          {entry.heading && (
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-blue-500 w-16 shrink-0">
+                Heading
+              </span>
+              <span>
+                {entry.heading.code}: {entry.heading.description}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
