@@ -70,7 +70,10 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> =
 };
 
 const SOURCE_CATEGORIES: Record<string, string[]> = {
-  'ABF Reference Files (Official Data)': ['hs_descriptions', 'schedule3', 'exchange_rates', 'instruments', 'preference_schemes'],
+  'ABF Reference Files (Official Data)': [
+    'hs_descriptions', 'schedule3', 'exchange_rates', 'instruments', 'preference_schemes',
+    'statistical_units', 'abf_permits', 'tariff_concordance',
+  ],
   'Tariff Schedules (1-16)': ['schedule1', 'schedule2', 'fta_schedules'],
   'Legislation': ['customs_act', 'customs_tariff_act', 'gst_act', 'customs_regs', 'anti_dumping_act', 'prohibited_imports', 'prohibited_exports'],
   'Trade & Compliance': ['dumping_notices', 'customs_notices', 'trade_desc', 'biosecurity', 'illegal_logging', 'imported_food'],

@@ -36,11 +36,32 @@ export default function TariffDetailView({
   const [tcoLinkedTariffs, setTcoLinkedTariffs] = useState<any[]>([]);
   const [tcoLinkLoading, setTcoLinkLoading] = useState(false);
 
-  // Reset customs value when entry changes
+  // ABF reference file data
+  const [abfPermits, setAbfPermits] = useState<any[]>([]);
+  const [concordance, setConcordance] = useState<{old_codes: any[]; new_codes: any[]} | null>(null);
+
+  // Reset when entry changes + fetch ABF permits and concordance
   useEffect(() => {
     setCustomsValue('');
     setExpandedTco(null);
     setTcoLinkedTariffs([]);
+    setAbfPermits([]);
+    setConcordance(null);
+
+    if (!entry?.tariff_code) return;
+
+    const code = entry.tariff_code;
+    // Fetch ABF permits (from PRMTRQMT)
+    fetch(`/api/tariff/abf-permits?code=${encodeURIComponent(code)}`)
+      .then((r) => r.json())
+      .then((data) => setAbfPermits(data.abf_permits || []))
+      .catch(() => setAbfPermits([]));
+
+    // Fetch tariff concordance (HS2017 ↔ HS2022)
+    fetch(`/api/tariff/concordance?code=${encodeURIComponent(code)}`)
+      .then((r) => r.json())
+      .then((data) => setConcordance({ old_codes: data.old_codes || [], new_codes: data.new_codes || [] }))
+      .catch(() => setConcordance(null));
   }, [entry?.tariff_code]);
 
   // Duty calculations
@@ -261,6 +282,76 @@ export default function TariffDetailView({
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ABF Official Permits (from PRMTRQMT reference file) */}
+      {abfPermits.length > 0 && (
+        <div className="p-4">
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+            <h4 className="text-xs font-semibold text-indigo-800 uppercase mb-2 flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              ABF Official Permit Requirements ({abfPermits.length})
+              <span className="text-[10px] font-normal text-indigo-500 ml-1">from PRMTRQMT</span>
+            </h4>
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {abfPermits.map((p, i) => (
+                <div key={i} className="text-xs text-indigo-700 py-1 flex items-center gap-2 border-b border-indigo-100 last:border-0">
+                  <span className={`font-semibold shrink-0 px-1.5 py-0.5 rounded font-mono text-[10px] ${
+                    p.required_flag === 'Y' ? 'bg-red-100 text-red-700' :
+                    p.required_flag === 'M' ? 'bg-amber-100 text-amber-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    {p.agency_code}
+                  </span>
+                  <span className="flex-1">{p.agency_name || p.agency_code}</span>
+                  {p.required_flag === 'Y' && <span className="text-[10px] text-red-600 font-semibold">REQUIRED</span>}
+                  {p.required_flag === 'M' && <span className="text-[10px] text-amber-600 font-semibold">MAY REQUIRE</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HS2017 ↔ HS2022 Concordance (from TRFCCONC) */}
+      {concordance && (concordance.old_codes.length > 0 || concordance.new_codes.length > 0) && (
+        <div className="p-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+            <h4 className="text-xs font-semibold text-slate-700 uppercase mb-2 flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              HS Code Concordance
+              <span className="text-[10px] font-normal text-slate-500 ml-1">from TRFCCONC</span>
+            </h4>
+            {concordance.old_codes.length > 0 && (
+              <div className="text-xs text-slate-700 mb-1.5">
+                <span className="text-slate-500">Previously known as (HS2017):</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {concordance.old_codes.map((c: any, i: number) => (
+                    <span key={i} onClick={() => onSelectCode && onSelectCode(c.old_code_formatted || c.old_code)} className="font-mono bg-white border border-slate-300 text-slate-700 px-1.5 py-0.5 rounded cursor-pointer hover:bg-blue-50 hover:border-blue-300">
+                      {c.old_code_formatted || c.old_code}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {concordance.new_codes.length > 0 && (
+              <div className="text-xs text-slate-700">
+                <span className="text-slate-500">Now replaced by (HS2022):</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {concordance.new_codes.map((c: any, i: number) => (
+                    <span key={i} onClick={() => onSelectCode && onSelectCode(c.new_code_formatted || c.new_code)} className="font-mono bg-white border border-blue-300 text-blue-700 px-1.5 py-0.5 rounded cursor-pointer hover:bg-blue-50">
+                      {c.new_code_formatted || c.new_code}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

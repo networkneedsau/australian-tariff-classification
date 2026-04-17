@@ -395,7 +395,9 @@ export type ActiveView =
   | 'tco'
   | 'alpha-index'
   | 'hsen'
-  | 'cbp-rulings';
+  | 'cbp-rulings'
+  | 'updates'
+  | 'library-updates';
 
 // ── Library Tree Node ──────────────────────────────────────────────
 

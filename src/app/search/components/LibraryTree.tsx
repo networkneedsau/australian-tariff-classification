@@ -11,6 +11,12 @@ interface LibraryTreeProps {
   onToggleNode: (id: string) => void;
   filter?: string;
   depth?: number;
+  // Search-filter checkbox state
+  selectedSources?: Set<string>;
+  onToggleSource?: (viewKey: string) => void;
+  onToggleCategory?: (node: TreeNode) => void;
+  // Per-source match counts (for current search query)
+  sourceCounts?: Record<string, number>;
 }
 
 function matchesFilter(node: TreeNode, filter: string): boolean {
@@ -20,6 +26,28 @@ function matchesFilter(node: TreeNode, filter: string): boolean {
     return node.children.some((child) => matchesFilter(child, lower));
   }
   return false;
+}
+
+/** Collect all leaf viewKeys under a node (recursive). */
+function collectLeafViewKeys(node: TreeNode): string[] {
+  if (!node.children || node.children.length === 0) {
+    return node.viewKey ? [node.viewKey] : [];
+  }
+  const keys: string[] = [];
+  for (const child of node.children) {
+    keys.push(...collectLeafViewKeys(child));
+  }
+  return keys;
+}
+
+/** Returns 'all' | 'some' | 'none' based on how many leaves under node are selected. */
+function categoryCheckState(node: TreeNode, selected: Set<string>): 'all' | 'some' | 'none' {
+  const leaves = collectLeafViewKeys(node);
+  if (leaves.length === 0) return 'none';
+  const checkedCount = leaves.filter((k) => selected.has(k)).length;
+  if (checkedCount === 0) return 'none';
+  if (checkedCount === leaves.length) return 'all';
+  return 'some';
 }
 
 const ICON_MAP: Record<string, ReactNode> = {
@@ -65,6 +93,75 @@ const ICON_MAP: Record<string, ReactNode> = {
   ),
 };
 
+// Checkbox rendering — blue filled when checked, empty border when unchecked,
+// dash inside when indeterminate (category with some leaves selected).
+function Checkbox({
+  state,
+  onClick,
+  title,
+}: {
+  state: 'all' | 'some' | 'none';
+  onClick: (e: React.MouseEvent) => void;
+  title?: string;
+}) {
+  const checked = state === 'all';
+  const indeterminate = state === 'some';
+  return (
+    <span
+      role="checkbox"
+      aria-checked={checked}
+      aria-label={title}
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(e);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          onClick(e as unknown as React.MouseEvent);
+        }
+      }}
+      className={`inline-flex items-center justify-center w-4 h-4 shrink-0 rounded border cursor-pointer transition-colors ${
+        checked
+          ? 'bg-blue-600 border-blue-600 text-white'
+          : indeterminate
+            ? 'bg-blue-100 border-blue-500 text-blue-700'
+            : 'bg-white border-gray-300 hover:border-blue-500'
+      }`}
+      title={title}
+    >
+      {checked && (
+        <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path
+            fillRule="evenodd"
+            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+            clipRule="evenodd"
+          />
+        </svg>
+      )}
+      {indeterminate && (
+        <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <rect x="4" y="9" width="12" height="2" rx="1" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
+/** Sum all leaf counts under a node (used for category-level count badges). */
+function sumLeafCounts(node: TreeNode, counts: Record<string, number>): number {
+  if (!node.children || node.children.length === 0) {
+    return node.viewKey && counts[node.viewKey] ? counts[node.viewKey] : 0;
+  }
+  let total = 0;
+  for (const child of node.children) {
+    total += sumLeafCounts(child, counts);
+  }
+  return total;
+}
+
 export default function LibraryTree({
   nodes,
   activeView,
@@ -73,7 +170,13 @@ export default function LibraryTree({
   onToggleNode,
   filter,
   depth = 0,
+  selectedSources,
+  onToggleSource,
+  onToggleCategory,
+  sourceCounts = {},
 }: LibraryTreeProps) {
+  const checkboxesEnabled = !!selectedSources && !!onToggleSource && !!onToggleCategory;
+
   return (
     <ul className={depth === 0 ? 'space-y-0.5' : 'space-y-0.5 ml-3'}>
       {nodes.map((node) => {
@@ -87,46 +190,86 @@ export default function LibraryTree({
 
         return (
           <li key={node.id}>
-            <button
-              onClick={() => {
-                if (hasChildren) {
-                  onToggleNode(node.id);
-                } else if (node.viewKey) {
-                  onSelect(node.viewKey);
-                }
-              }}
-              className={`w-full flex items-center gap-2 px-2 py-1.5 text-left text-sm rounded-md transition-colors ${
+            <div
+              className={`w-full flex items-center gap-1.5 pr-2 py-1.5 text-sm rounded-md transition-colors ${
                 isActive && isLeaf
                   ? 'bg-blue-100 text-blue-800 font-medium'
                   : 'text-gray-700 hover:bg-gray-100'
               }`}
             >
-              {/* Icon for top-level categories */}
-              {depth === 0 && node.icon && ICON_MAP[node.icon] && (
-                <span className={isActive ? 'text-blue-600' : 'text-gray-400'}>
-                  {ICON_MAP[node.icon]}
+              {/* Checkbox for search-filter selection */}
+              {checkboxesEnabled && (
+                <span className="pl-2">
+                  {isLeaf && node.viewKey ? (
+                    <Checkbox
+                      state={selectedSources!.has(node.viewKey) ? 'all' : 'none'}
+                      onClick={() => onToggleSource!(node.viewKey!)}
+                      title={`Include ${node.label} in search`}
+                    />
+                  ) : (
+                    <Checkbox
+                      state={categoryCheckState(node, selectedSources!)}
+                      onClick={() => onToggleCategory!(node)}
+                      title={`Toggle all ${node.label}`}
+                    />
+                  )}
                 </span>
               )}
 
-              {/* Chevron for parents */}
-              {hasChildren ? (
-                <svg
-                  className={`w-3.5 h-3.5 shrink-0 text-gray-400 transition-transform duration-150 ${
-                    isExpanded ? 'rotate-90' : ''
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              ) : (
-                <span className="w-3.5 shrink-0" />
-              )}
+              <button
+                onClick={() => {
+                  if (hasChildren) {
+                    onToggleNode(node.id);
+                  } else if (node.viewKey) {
+                    onSelect(node.viewKey);
+                  }
+                }}
+                className="flex items-center gap-2 text-left flex-1 min-w-0 pl-1"
+              >
+                {/* Icon for top-level categories */}
+                {depth === 0 && node.icon && ICON_MAP[node.icon] && (
+                  <span className={isActive ? 'text-blue-600' : 'text-gray-400'}>
+                    {ICON_MAP[node.icon]}
+                  </span>
+                )}
 
-              {/* Label */}
-              <span className="truncate flex-1">{node.label}</span>
-            </button>
+                {/* Chevron for parents */}
+                {hasChildren ? (
+                  <svg
+                    className={`w-3.5 h-3.5 shrink-0 text-gray-400 transition-transform duration-150 ${
+                      isExpanded ? 'rotate-90' : ''
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                ) : (
+                  <span className="w-3.5 shrink-0" />
+                )}
+
+                {/* Label */}
+                <span className="truncate flex-1">{node.label}</span>
+
+                {/* Per-source match count badge (shown during search) */}
+                {(() => {
+                  const count = isLeaf && node.viewKey
+                    ? (sourceCounts[node.viewKey] || 0)
+                    : sumLeafCounts(node, sourceCounts);
+                  if (count === 0) return null;
+                  return (
+                    <span className={`shrink-0 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                      isActive && isLeaf
+                        ? 'bg-blue-200 text-blue-900'
+                        : 'bg-cyan-100 text-cyan-800'
+                    }`}>
+                      {count}
+                    </span>
+                  );
+                })()}
+              </button>
+            </div>
 
             {/* Children */}
             {hasChildren && isExpanded && (
@@ -138,6 +281,10 @@ export default function LibraryTree({
                 onToggleNode={onToggleNode}
                 filter={filter}
                 depth={depth + 1}
+                selectedSources={selectedSources}
+                onToggleSource={onToggleSource}
+                onToggleCategory={onToggleCategory}
+                sourceCounts={sourceCounts}
               />
             )}
           </li>
