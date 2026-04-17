@@ -276,11 +276,38 @@ export default function CenterPanel({
   }
 
   // ── Schedule browser ───────────────────────────────────────────
+  const ABF = 'https://www.abf.gov.au/importing-exporting-and-manufacturing/tariff-classification/current-tariff';
+  const ftaEntry = (key: string, label: string, title: string): ScheduleInfo => ({
+    id: `schedule-${key}`,
+    label: `Schedule ${key.toUpperCase()}`,
+    title,
+    dataSource: 'fta',
+    abfUrl: `${ABF}/schedule-${key}`,
+    ftaScheduleKey: `Schedule ${key.toUpperCase()}`,
+  });
   const scheduleMap: Record<string, ScheduleInfo> = {
-    'schedule-1': { id: 'schedule-1', label: 'Schedule 1', title: 'Countries & Places', dataSource: 'countries', abfUrl: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/tariff-classification/current-tariff/schedule-1' },
-    'schedule-2': { id: 'schedule-2', label: 'Schedule 2', title: 'Interpretative Rules', dataSource: 'rules', abfUrl: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/tariff-classification/current-tariff/schedule-2' },
-    'schedule-3': { id: 'schedule-3', label: 'Schedule 3', title: 'Classification of Goods', dataSource: 'sections', abfUrl: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/tariff-classification/current-tariff/schedule-3' },
-    'schedule-4': { id: 'schedule-4', label: 'Schedule 4', title: 'Concessional Rates', dataSource: 'fta', abfUrl: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/tariff-classification/current-tariff/schedule-4' },
+    'schedule-1': { id: 'schedule-1', label: 'Schedule 1', title: 'Countries & Places', dataSource: 'countries', abfUrl: `${ABF}/schedule-1` },
+    'schedule-2': { id: 'schedule-2', label: 'Schedule 2', title: 'Interpretative Rules', dataSource: 'rules', abfUrl: `${ABF}/schedule-2` },
+    'schedule-3': { id: 'schedule-3', label: 'Schedule 3', title: 'Classification of Goods', dataSource: 'sections', abfUrl: `${ABF}/schedule-3` },
+    'schedule-4':   ftaEntry('4',   'Schedule 4',   'Concessional Rates of Duty'),
+    'schedule-4a':  ftaEntry('4a',  'Schedule 4A',  'Singapore (SAFTA) — excluded goods'),
+    'schedule-5':   ftaEntry('5',   'Schedule 5',   'United States (AUSFTA) — excluded goods'),
+    'schedule-6':   ftaEntry('6',   'Schedule 6',   'Thailand (TAFTA) — excluded goods'),
+    'schedule-6a':  ftaEntry('6a',  'Schedule 6A',  'Peru (PAFTA) — excluded goods'),
+    'schedule-7':   ftaEntry('7',   'Schedule 7',   'Chile (ACI-FTA) — excluded goods'),
+    'schedule-8':   ftaEntry('8',   'Schedule 8',   'AANZFTA — excluded goods'),
+    'schedule-8a':  ftaEntry('8a',  'Schedule 8A',  'Pacific Island (PICTA) — excluded goods'),
+    'schedule-8b':  ftaEntry('8b',  'Schedule 8B',  'CPTPP — excluded goods'),
+    'schedule-9':   ftaEntry('9',   'Schedule 9',   'Malaysia (MAFTA) — excluded goods'),
+    'schedule-9a':  ftaEntry('9a',  'Schedule 9A',  'Indonesia (IA-CEPA) — excluded goods'),
+    'schedule-10':  ftaEntry('10',  'Schedule 10',  'Korea (KAFTA) — excluded goods'),
+    'schedule-10a': ftaEntry('10a', 'Schedule 10A', 'India (AI-ECTA) — excluded goods'),
+    'schedule-11':  ftaEntry('11',  'Schedule 11',  'Japan (JAEPA) — excluded goods'),
+    'schedule-12':  ftaEntry('12',  'Schedule 12',  'China (ChAFTA) — excluded goods'),
+    'schedule-13':  ftaEntry('13',  'Schedule 13',  'Hong Kong (A-HKFTA) — excluded goods'),
+    'schedule-14':  ftaEntry('14',  'Schedule 14',  'RCEP — excluded goods'),
+    'schedule-15':  ftaEntry('15',  'Schedule 15',  'United Kingdom (A-UKFTA) — excluded goods'),
+    'schedule-16':  ftaEntry('16',  'Schedule 16',  'UAE (CEPA) — excluded goods'),
     'schedule': activeSchedule ? { id: 'schedule', label: activeSchedule.label, title: activeSchedule.title, dataSource: activeSchedule.dataSource, abfUrl: activeSchedule.abfUrl } : null!,
   };
   const scheduleInfo = scheduleMap[activeView];
