@@ -6,6 +6,7 @@ const PUBLIC_PATHS = [
   '/',
   '/login',
   '/register',
+  '/logout',
 ];
 
 const PUBLIC_PREFIXES = [
