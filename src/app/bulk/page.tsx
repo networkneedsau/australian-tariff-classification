@@ -126,7 +126,7 @@ export default function BulkLookupPage() {
           </div>
           <div className="flex gap-3">
             <Link
-              href="/"
+              href="/search"
               className="text-sm bg-white/10 hover:bg-white/20 px-4 py-2 rounded transition-colors"
             >
               &larr; Tariff Search

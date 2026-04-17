@@ -286,7 +286,7 @@ export default function WizardPage() {
       <header className="bg-blue-950 text-white">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-lg font-bold tracking-tight hover:text-blue-200 transition-colors">
+            <Link href="/search" className="text-lg font-bold tracking-tight hover:text-blue-200 transition-colors">
               Australian Tariff
             </Link>
             <span className="text-blue-300">/</span>

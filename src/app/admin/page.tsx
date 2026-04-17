@@ -183,7 +183,7 @@ export default function AdminPage() {
             <h1 className="text-xl font-bold">Data Update Administration</h1>
             <p className="text-sm text-blue-200">Manage programmatic updates for all tariff data sources</p>
           </div>
-          <Link href="/" className="text-sm bg-white/10 hover:bg-white/20 px-4 py-2 rounded transition-colors">
+          <Link href="/search" className="text-sm bg-white/10 hover:bg-white/20 px-4 py-2 rounded transition-colors">
             &larr; Back to Tariff Search
           </Link>
         </div>

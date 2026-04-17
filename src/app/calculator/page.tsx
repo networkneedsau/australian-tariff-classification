@@ -311,7 +311,7 @@ export default function CalculatorPage() {
             </p>
           </div>
           <Link
-            href="/"
+            href="/search"
             className="text-sm text-blue-200 hover:text-white transition-colors"
           >
             &larr; Back to Tariff Search
