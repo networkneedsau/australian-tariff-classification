@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type {
   TariffResult,
   ActSectionRow,
@@ -83,11 +83,20 @@ export function useSearch() {
     }
   }, []);
 
-  const search = useCallback(() => {
+  // Auto-search with debounce when query changes
+  useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       doSearch(query);
     }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query, doSearch]);
+
+  const search = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    doSearch(query);
   }, [query, doSearch]);
 
   // Immediate search (used when pressing Enter)
